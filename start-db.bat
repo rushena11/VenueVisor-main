@@ -1,0 +1,3 @@
+@echo off
+echo Starting MySQL 8.4...
+"D:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqld.exe" --defaults-file="D:\laragon\bin\mysql\mysql-8.4.3-winx64\my.ini" --console

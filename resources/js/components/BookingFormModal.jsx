@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"; 
 import axios from "axios";
-import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
 // import Logo from "../assets/lnu-logo.png"; 
 // Using the existing logo path from the project
 const Logo = "/assets/LNULogo.png";
@@ -79,49 +77,6 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
         window.open(url, "_blank");
       };
 
-      let el = null;
-      for (let i = 0; i < 60; i++) {
-        await new Promise((r) => requestAnimationFrame(() => r()));
-        el = printRef.current;
-        if (el) break;
-      }
-      if (!el) throw new Error("Reservation form element not ready");
-
-      if (document.fonts?.ready) {
-        try {
-          await document.fonts.ready;
-        } catch {}
-      }
-      const images = Array.from(el.querySelectorAll("img"));
-      await Promise.all(
-        images.map((img) =>
-          img.complete
-            ? Promise.resolve()
-            : new Promise((resolve) => {
-                img.onload = () => resolve();
-                img.onerror = () => resolve();
-              })
-        )
-      );
-
-      const buildClientPdfBlob = async () => {
-        const canvas = await html2canvas(el, {
-          scale: 1,
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: "#ffffff",
-          logging: false,
-        });
-        const pdf = new jsPDF({
-          orientation: "p",
-          unit: "pt",
-          format: [612, 936],
-        });
-        const imgData = canvas.toDataURL("image/jpeg", 0.92);
-        pdf.addImage(imgData, "JPEG", 0, 0, 612, 936, undefined, "FAST");
-        return pdf.output("blob");
-      };
-
       const buildTcpdfBlob = async () => {
         if (!formData.activity?.trim()) {
           throw new Error("Please enter the Activity / Event.");
@@ -177,14 +132,8 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
         return new Blob([res.data], { type: "application/pdf" });
       };
 
-      let blob = null;
-      try {
-        setPopupMessage("Preparing PDF…");
-        blob = await buildClientPdfBlob();
-      } catch (e) {
-        setPopupMessage("Preparing PDF (alternate)…");
-        blob = await buildTcpdfBlob();
-      }
+      setPopupMessage("Preparing PDF…");
+      const blob = await buildTcpdfBlob();
 
       const url = window.URL.createObjectURL(blob);
       openInPopup(url);
@@ -581,7 +530,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
           {/* HEADER */} 
           <div className="relative pb-3 leading-none"> 
             <img 
-              src={Logo} 
+              src="/assets/LNULogo.png" 
               alt="LNU Logo" 
               className="absolute"
               style={{
@@ -594,16 +543,16 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
 
             <div className="text-center space-y-0 pt-4"> 
               <h2 className="mb-1" style={{ fontFamily: 'Bahnschrift', fontSize: '12pt' }}>Republic of the Philippines</h2> 
-              <h1 className="font-bold mb-1" style={{ fontFamily: 'Bahnschrift, sans-serif', fontSize: '12pt' }}>LEYTE NORMAL UNIVERSITY</h1> 
+              <h1 className="font-bold mb-1" style={{ fontFamily: 'Bahnschrift', fontSize: '12pt' }}>LEYTE NORMAL UNIVERSITY</h1> 
               <p className="mb-1" style={{ fontFamily: 'Calibri, sans-serif', fontSize: '12pt' }}>Tacloban City</p> 
               <p className="font-bold mb-1" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11pt' }}>PHYSICAL PLANT AND FACILITIES</p> 
-              <p className="font-bold mb-0" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11pt' }}>VENUE AND AUDIO-VISUAL FACILITIES RESERVATION FORM</p> 
+              <p className="font-bold mb-0" style={{ fontFamily: 'Arial, sans-serif', fontSize: '50pt' }}>VENUE AND AUDIO-VISUAL FACILITIES RESERVATION FORM</p> 
             </div> 
           </div>
 
           {/* OR DETAILS BOX - Top Right */}
           <div 
-            className="absolute top-2 left-130 border border-black p-2 bg-white z-10 flex flex-col justify-start"
+            className="absolute top-1 left-130 border border-black p-2 bg-white z-10 flex flex-col justify-start"
             style={{ 
               fontFamily: 'Calibri(Body)', 
               fontSize: '11pt',

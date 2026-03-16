@@ -3,10 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import ReservationDetailsModal from '../components/ReservationDetailsModal';
 import html2pdf from 'html2pdf.js';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Pie } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
+import { Pie, Bar } from 'react-chartjs-2';
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 const Dashboard = () => {
     const navigate = useNavigate();
@@ -17,8 +17,6 @@ const Dashboard = () => {
     const [user, setUser] = useState(null);
     const [selectedReservation, setSelectedReservation] = useState(null);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
     const [summaryType, setSummaryType] = useState('month');
     const [summaryStart, setSummaryStart] = useState(() => {
         const d = new Date();
@@ -45,11 +43,6 @@ const Dashboard = () => {
     useEffect(() => {
         localStorage.setItem('vv_pieMonth', pieMonth);
     }, [pieMonth]);
-
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm]);
 
     useEffect(() => {
         const storedUser = localStorage.getItem('user');
@@ -120,118 +113,6 @@ const Dashboard = () => {
 
     const isAdmin = user?.role === 'admin' || user?.role === 'staff'; // Adjust based on your role names
 
-    const getVenuesString = (res) => {
-        const venues = [];
-        if (res.hrdc_hall) venues.push('HRDC Hall');
-        if (res.av_studio) venues.push('AV Studio');
-        if (res.bleacher) venues.push('Bleacher');
-        if (res.alba_hall) venues.push('Alba Hall');
-        if (res.student_center_mini_theater) venues.push('Mini Theater');
-        if (res.cte_training_hall_2_or_3) venues.push('CTE Training Hall');
-        if (res.admin_building_2nd_floor) venues.push('Admin Bldg 2nd Floor');
-        if (res.hrdc_quad_stage) venues.push('HRDC Quad Stage');
-        if (res.dance_studio_hall_3f) venues.push('Dance Studio');
-        if (res.cme_gym) venues.push('CME Gym');
-        if (res.library_grounds) venues.push('Library Grounds');
-        if (res.hrdc_quadrangle_stage) venues.push('HRDC Quadrangle');
-        {
-            const o = String(res.others_venue_specify || '').trim();
-            if (o && !/^\d+$/.test(o)) venues.push(o);
-        }
-        return venues.join(', ') || 'None';
-    };
-
-    const getAudioString = (res) => {
-        const items = [];
-        if (res.amplifier_qty > 0) items.push(`Amp: ${res.amplifier_qty}`);
-        if (res.speaker_qty > 0) items.push(`Speaker: ${res.speaker_qty}`);
-        if (res.microphone_qty > 0) items.push(`Mic: ${res.microphone_qty}`);
-        if (res.audio_others_qty > 0) items.push(`Other: ${res.audio_others_qty}`);
-        return items.join(', ') || 'None';
-    };
-
-    const getVideoString = (res) => {
-        const items = [];
-        if (res.video_showing_qty > 0) items.push(`Showing: ${res.video_showing_qty}`);
-        if (res.video_editing_qty > 0) items.push(`Editing: ${res.video_editing_qty}`);
-        if (res.video_coverage_qty > 0) items.push(`Coverage: ${res.video_coverage_qty}`);
-        if (res.video_others_qty > 0) items.push(`Other: ${res.video_others_qty}`);
-        return items.join(', ') || 'None';
-    };
-
-    const getLightingString = (res) => {
-        const items = [];
-        if (res.follow_spot_qty > 0) items.push(`Spot: ${res.follow_spot_qty}`);
-        if (res.house_light_qty > 0) items.push(`House: ${res.house_light_qty}`);
-        if (res.electric_fans_qty > 0) items.push(`Fans: ${res.electric_fans_qty}`);
-        if (res.lighting_others_qty > 0) items.push(`Other: ${res.lighting_others_qty}`);
-        return items.join(', ') || 'None';
-    };
-
-    const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
-    const monthAbbr = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-
-    const matchMonthSearch = (dateStr, searchLower) => {
-        const d = parseDate(dateStr);
-        if (!d) return false;
-        const y = d.getFullYear();
-        const m = d.getMonth();
-        const ym = `${y}-${String(m + 1).padStart(2, '0')}`;
-        const tokens = [
-            ym,
-            monthNames[m],
-            monthAbbr[m],
-            `${monthNames[m]} ${y}`,
-            `${monthAbbr[m]} ${y}`,
-            `${String(m + 1).padStart(2, '0')}/${y}`,
-            `${y}/${String(m + 1).padStart(2, '0')}`
-        ];
-        return tokens.some(t => t.includes(searchLower));
-    };
-
-    const reservationHaystack = (res) => {
-        const parts = [];
-        const activity = (res.activity_event || '').toLowerCase();
-        const party = (res.requesting_party || '').toLowerCase();
-        const idStr = String(res.id ?? '');
-        const orStr = String(res.or_number ?? '');
-        const dateRaw = String(res.date_of_use || '');
-        parts.push(activity, party, idStr, orStr, dateRaw);
-        try {
-            if (res.date_of_use) {
-                const d = new Date(res.date_of_use);
-                if (!isNaN(d)) {
-                    const monthNamesFull = ['january','february','march','april','may','june','july','august','september','october','november','december'];
-                    const monthNamesAbbr = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-                    const yyyy = d.getFullYear();
-                    const mm = String(d.getMonth() + 1).padStart(2, '0');
-                    const dd = String(d.getDate()).padStart(2, '0');
-                    const full = `${monthNamesFull[d.getMonth()]} ${dd}, ${yyyy}`;
-                    const abbr = `${monthNamesAbbr[d.getMonth()]} ${dd}, ${yyyy}`;
-                    const slashes = `${mm}/${dd}/${yyyy}`;
-                    const ym = `${yyyy}-${mm}`;
-                    parts.push(full.toLowerCase(), abbr.toLowerCase(), slashes.toLowerCase(), ym);
-                }
-            }
-        } catch (_) {}
-        const venuesStr = getVenuesString(res).toLowerCase();
-        parts.push(venuesStr);
-        return parts.filter(Boolean).join(' | ');
-    };
-    const filteredReservations = reservations.filter(res => {
-        const s = (searchTerm || '').trim().toLowerCase();
-        if (!s) return true;
-        const hay = reservationHaystack(res);
-        if (hay.includes(s)) return true;
-        if (matchMonthSearch(res.date_of_use, s)) return true;
-        return false;
-    });
-    const PAGE_SIZE = 5;
-    const totalPages = Math.max(1, Math.ceil(filteredReservations.length / PAGE_SIZE));
-    const safePage = Math.min(currentPage, totalPages);
-    const startIndex = (safePage - 1) * PAGE_SIZE;
-    const paginatedReservations = filteredReservations.slice(startIndex, startIndex + PAGE_SIZE);
-
     const venueNames = {
         hrdc_hall: 'HRDC Hall',
         av_studio: 'AV Studio',
@@ -240,17 +121,30 @@ const Dashboard = () => {
         student_center_mini_theater: 'Student Center Mini-Theater',
         cte_training_hall_2_or_3: 'CTE Training Hall',
         admin_building_2nd_floor: 'Admin Ballroom 2F',
+        multi_purpose_hall_3f: 'Multi-Purpose Hall 3F',
+        hum_av_theater: 'Hum. AV Theater',
         hrdc_quad_stage: 'HRDC Quad Stage',
         dance_studio_hall_3f: 'Dance Studio',
         cme_gym: 'CME Gym',
+        classroom_specify: 'Classroom',
+        laboratory_room_specify: 'Laboratory Room',
         library_grounds: 'Library Grounds',
-        hrdc_quadrangle_stage: 'ORC Quadrangle/Stage'
+        hrdc_quadrangle_stage: 'ORC Quadrangle/Stage',
+        others_venue_specify: 'Others'
     };
 
     const venueKeys = Object.keys(venueNames);
     const venuesOptionList = [{ key: 'all', label: 'All Venues' }].concat(
         venueKeys.map(k => ({ key: k, label: venueNames[k] }))
     );
+
+    const allVenueLabels = (() => {
+        const list = (venues || [])
+            .map(v => String(v?.name || '').trim())
+            .filter(Boolean);
+        if (list.length > 0) return Array.from(new Set(list));
+        return Array.from(new Set(Object.values(venueNames)));
+    })();
 
     const getPrimaryVenueKey = (res) => {
         for (const key of venueKeys) {
@@ -319,6 +213,9 @@ const Dashboard = () => {
         const pending = list.filter(r => r.status === 'pending').length;
         const rejected = list.filter(r => r.status === 'rejected').length;
         const byVenue = {};
+        allVenueLabels.forEach(label => {
+            byVenue[label] = 0;
+        });
         list.forEach(r => {
             const v = getPrimaryVenueName(r);
             byVenue[v] = (byVenue[v] || 0) + 1;
@@ -493,8 +390,13 @@ h1{font-size:20px;margin:0 0 8px}
     const usageList = filterInRange('month', effectivePieMonth);
     const pieList = usageList.filter(r => pieFilter === 'all' ? true : r.status === pieFilter);
     const usageStats = summaryStats(pieList);
-    const venueUsage = Object.entries(usageStats.byVenue).sort((a, b) => b[1] - a[1]);
+    const venueUsageForPie = Object.entries(usageStats.byVenue)
+        .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))
+        .filter(([, count]) => count > 0);
     const usageTotal = usageStats.total;
+    const showVenueBreakdown = usageTotal > 0 && venueUsageForPie.length > 0;
+    const barMinWidth = Math.max(520, venueUsageForPie.length * 90);
+    const barChartHeight = 320;
     const pieColors = [
         '#6597e9',
         '#56ecba',
@@ -510,11 +412,11 @@ h1{font-size:20px;margin:0 0 8px}
         '#70cdf8'
     ];
     const pieData = {
-        labels: venueUsage.map(([label]) => label),
+        labels: venueUsageForPie.map(([label]) => label),
         datasets: [
             {
-                data: venueUsage.map(([, count]) => count),
-                backgroundColor: pieColors.slice(0, venueUsage.length),
+                data: venueUsageForPie.map(([, count]) => count),
+                backgroundColor: pieColors.slice(0, venueUsageForPie.length),
                 borderColor: '#e5e7eb',
                 borderWidth: 1
             }
@@ -528,6 +430,40 @@ h1{font-size:20px;margin:0 0 8px}
             tooltip: { enabled: true }
         }
     };
+    const barData = {
+        labels: venueUsageForPie.map(([label]) => label),
+        datasets: [
+            {
+                data: venueUsageForPie.map(([, count]) => count),
+                backgroundColor: venueUsageForPie.map((_, idx) => pieColors[idx % pieColors.length]),
+                borderColor: '#e5e7eb',
+                borderWidth: 1,
+                borderRadius: 6,
+                barThickness: 14
+            }
+        ]
+    };
+    const barOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: { enabled: true }
+        },
+        scales: {
+            x: {
+                ticks: {
+                    autoSkip: true,
+                    maxRotation: 45,
+                    minRotation: 0
+                }
+            },
+            y: {
+                beginAtZero: true,
+                ticks: { precision: 0 }
+            }
+        }
+    };
 
     return (
         <div>
@@ -535,7 +471,7 @@ h1{font-size:20px;margin:0 0 8px}
             
         {!isAdmin && (
             <div className="mb-8 space-y-4">
-                {filteredReservations.map((res) => {
+                {reservations.map((res) => {
                     const occ = occupancyFor(res);
                     const venueLabel = getPrimaryVenueName(res);
                     const statusBadge =
@@ -639,178 +575,55 @@ h1{font-size:20px;margin:0 0 8px}
                             </div>
                         </div>
                         <div className="mt-4 text-center text-gray-800 font-semibold">Venue Usage</div>
-                        {usageTotal === 0 || venueUsage.length === 0 ? (
-                            <div className="mt-30 flex items-center justify-center">
-                                <div className="text-center">
-                                    <div className="flex items-center justify-center mb-2">
-                                        <svg className="w-9 h-9 text-gray-500" viewBox="0 0 36 36" fill="none">
-                                            <rect x="7" y="5" width="16" height="22" rx="2" stroke="currentColor" strokeWidth="2" />
-                                            <rect x="12" y="9" width="4" height="10" rx="1" stroke="currentColor" strokeWidth="2" />
-                                            <rect x="12" y="21" width="4" height="4" rx="0.5" stroke="currentColor" strokeWidth="2" />
-                                            <path d="M7 23 L9 23 L7 25 Z" fill="currentColor" />
-                                            <circle cx="26" cy="24" r="6" stroke="currentColor" strokeWidth="2" />
-                                            <path d="M26 20.5 V27.5 M22.5 24 H29.5 M24.5 22.5 L27.5 25.5 M24.5 25.5 L27.5 22.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                        </svg>
+                        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                            <div className="flex flex-col items-center">
+                                {usageTotal === 0 || venueUsageForPie.length === 0 ? (
+                                    <div className="flex items-center justify-center" style={{ width: 260, height: 260 }}>
+                                        <div className="text-center">
+                                            <div className="flex items-center justify-center mb-2">
+                                                <svg className="w-9 h-9 text-gray-500" viewBox="0 0 36 36" fill="none">
+                                                    <rect x="7" y="5" width="16" height="22" rx="2" stroke="currentColor" strokeWidth="2" />
+                                                    <rect x="12" y="9" width="4" height="10" rx="1" stroke="currentColor" strokeWidth="2" />
+                                                    <rect x="12" y="21" width="4" height="4" rx="0.5" stroke="currentColor" strokeWidth="2" />
+                                                    <path d="M7 23 L9 23 L7 25 Z" fill="currentColor" />
+                                                    <circle cx="26" cy="24" r="6" stroke="currentColor" strokeWidth="2" />
+                                                    <path d="M26 20.5 V27.5 M22.5 24 H29.5 M24.5 22.5 L27.5 25.5 M24.5 25.5 L27.5 22.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                                </svg>
+                                            </div>
+                                            <div className="text-gray-800 font-semibold">No data available</div>
+                                            <div className="text-xs text-gray-500 mt-1">Pick another month</div>
+                                        </div>
                                     </div>
-                                    <div className="text-gray-800 font-semibold">No data available</div>
-                                    <div className="text-xs text-gray-500 mt-1">Pick another month</div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="mt-4 flex items-center justify-center gap-8 flex-wrap flex-1">
-                                <div className="flex flex-col items-center">
+                                ) : (
                                     <div style={{ width: 260, height: 260 }}>
                                         <Pie data={pieData} options={pieOptions} />
                                     </div>
-                                    <div className="mt-2 text-sm text-gray-700">
-                                        <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-800 px-2 py-0.5 rounded">
-                                            <span className="font-medium">Total bookings</span>
-                                            <span className="font-semibold">{usageTotal}</span>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="min-w-[240px]">
-                                    <div className="text-sm text-gray-600 mb-2">By venue</div>
-                                    <div className="space-y-2 max-h-52 overflow-auto pr-2">
-                                        {venueUsage.map(([label, count], idx) => {
-                                            const pct = usageTotal > 0 ? Math.round((count / usageTotal) * 100) : 0;
-                                            return (
-                                                <div key={label} className="space-y-1">
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="inline-block w-3.5 h-3.5 rounded-full" style={{ backgroundColor: pieColors[idx % pieColors.length] }} />
-                                                            <span className="text-sm text-gray-800">{label}</span>
-                                                        </div>
-                                                        <div className="text-sm text-gray-700">{count} • {pct}%</div>
-                                                    </div>
-                                                    <div className="w-full bg-gray-100 h-1.5 rounded">
-                                                        <div
-                                                            className="h-1.5 rounded"
-                                                            style={{
-                                                                width: `${pct}%`,
-                                                                backgroundColor: pieColors[idx % pieColors.length]
-                                                            }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                )}
+                                <div className="mt-2 text-sm text-gray-700">
+                                    <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-800 px-2 py-0.5 rounded">
+                                        <span className="font-medium">Total bookings</span>
+                                        <span className="font-semibold">{usageTotal}</span>
+                                    </span>
                                 </div>
                             </div>
-                        )}
+                            <div className="w-full">
+                                {showVenueBreakdown ? (
+                                    <div className="overflow-x-auto">
+                                        <div style={{ width: barMinWidth, height: barChartHeight }}>
+                                            <Bar data={barData} options={barOptions} />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center" style={{ height: 260 }}>
+                                        <div className="text-sm text-gray-500">No data available</div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     
                 </div>
             </div>
         </div>
-
-        
-
-            {/* Recent Reservations Table */}
-            <div className="bg-white rounded-lg shadow overflow-hidden mt-7">
-                <div className="px-6 py-4 border-b flex justify-between items-center">
-                    <h3 className="text-lg font-medium text-gray-800">Reservations</h3>
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="Search event, date, or ID..."
-                            className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm w-64"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activity/Event</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requesting Party</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date of Use</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Inclusive Time</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {paginatedReservations.map((res) => (
-                                <tr 
-                                    key={res.id} 
-                                    onClick={() => handleView(res)}
-                                    className="hover:bg-gray-50 cursor-pointer transition-colors"
-                                >
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{res.id}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{res.activity_event}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{res.requesting_party}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDatePH(res.date_of_use)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {formatTime12h(res.inclusive_time_start)} - {formatTime12h(res.inclusive_time_end)}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <div className="flex items-center gap-2">
-                                            <span
-                                                className={`px-2 py-1 rounded-full text-xs border ${
-                                                    res.status === 'approved'
-                                                        ? 'bg-green-50 text-green-700 border-green-200'
-                                                        : res.status === 'pending'
-                                                        ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                                                        : 'bg-red-50 text-red-700 border-red-200'
-                                                }`}
-                                            >
-                                                {res.status === 'approved'
-                                                    ? 'Approved'
-                                                    : res.status === 'pending'
-                                                    ? 'Pending'
-                                                    : 'Denied'}
-                                            </span>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleView(res);
-                                                }}
-                                                className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition-colors"
-                                            >
-                                                View
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-                <div className="px-6 py-4 border-t flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
-                        {filteredReservations.length === 0
-                            ? 'No reservations found'
-                            : `Showing ${startIndex + 1}-${Math.min(startIndex + PAGE_SIZE, filteredReservations.length)} of ${filteredReservations.length}`}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            className="px-3 py-1.5 text-sm rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
-                            onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                            disabled={safePage <= 1}
-                        >
-                            Previous
-                        </button>
-                        <span className="text-sm text-gray-700">
-                            Page {safePage} of {totalPages}
-                        </span>
-                        <button
-                            className="px-3 py-1.5 text-sm rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-50"
-                            onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                            disabled={safePage >= totalPages}
-                        >
-                            Next
-                        </button>
-                    </div>
-                </div>
-            </div>
 
             <ReservationDetailsModal 
                 isOpen={isViewModalOpen} 

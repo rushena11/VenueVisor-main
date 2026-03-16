@@ -1,6 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+
+const DEFAULT_VENUE_NAMES = [
+  'HRDC Hall',
+  'AV Studio',
+  'Bleacher',
+  'Alba Hall',
+  'Student Center Mini-Theater',
+  'CTE Training Hall',
+  'Admin Ballroom 2F',
+  'Multi-Purpose Hall 3F',
+  'Hum. AV Theater',
+  'Dance Studio',
+  'CME Gym',
+  'Library Grounds',
+  'HRDC Quad Stage',
+  'ORC Quadrangle/Stage',
+];
+
+const normalizeVenueName = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const Venues = () => {
   const navigate = useNavigate();
@@ -33,7 +52,31 @@ const Venues = () => {
     fetchVenues();
   }, []);
 
-  const filtered = venues.filter(v => {
+  const displayVenues = useMemo(() => {
+    const existingByName = new Map();
+    (venues || []).forEach(v => {
+      const key = normalizeVenueName(v?.name);
+      if (key && !existingByName.has(key)) existingByName.set(key, v);
+    });
+
+    const merged = DEFAULT_VENUE_NAMES.map(name => {
+      const key = normalizeVenueName(name);
+      const found = existingByName.get(key);
+      if (found) return found;
+      return { id: `default:${key}`, name, status: 'available', isVirtual: true };
+    });
+
+    const defaultKeys = new Set(DEFAULT_VENUE_NAMES.map(normalizeVenueName));
+    (venues || []).forEach(v => {
+      const key = normalizeVenueName(v?.name);
+      if (!key || defaultKeys.has(key)) return;
+      merged.push(v);
+    });
+
+    return merged;
+  }, [venues]);
+
+  const filtered = displayVenues.filter(v => {
     const q = search.toLowerCase();
     return (
       (v.name || '').toLowerCase().includes(q) ||
@@ -69,7 +112,11 @@ const Venues = () => {
   };
 
   const openEdit = (v) => {
-    setEditing(v);
+    if (v?.isVirtual) {
+      setEditing(null);
+    } else {
+      setEditing(v);
+    }
     setFormName(v.name || '');
     setFormLocation(v.location || '');
     setFormStatus(v.status || 'available');

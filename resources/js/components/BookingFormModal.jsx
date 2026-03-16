@@ -541,7 +541,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
               }}
             /> 
 
-            <div className="text-center space-y-0 pt-4"> 
+            <div className="text-center space-y-0 pt-1"> 
               <h2 className="mb-1" style={{ fontFamily: 'Bahnschrift', fontSize: '12pt' }}>Republic of the Philippines</h2> 
               <h1 className="font-bold mb-1" style={{ fontFamily: 'Bahnschrift', fontSize: '12pt' }}>LEYTE NORMAL UNIVERSITY</h1> 
               <p className="mb-1" style={{ fontFamily: 'Calibri, sans-serif', fontSize: '12pt' }}>Tacloban City</p> 
@@ -552,7 +552,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
 
           {/* OR DETAILS BOX - Top Right */}
           <div 
-            className="absolute top-1 left-130 border border-black p-2 bg-white z-10 flex flex-col justify-start"
+            className="absolute top-1 left-200 border border-black p-2 bg-white z-10 flex flex-col justify-start"
             style={{ 
               fontFamily: 'Calibri(Body)', 
               fontSize: '11pt',

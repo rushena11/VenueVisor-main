@@ -1,3 +1,3 @@
 @echo off
 echo Starting VenueVisor Backend...
-"D:\laragon\bin\php\php-8.4.16-nts-Win32-vs17-x64\php.exe" -c "D:\laragon\www\VenueVisor\php.ini" -S localhost:8000 -t public
+"C:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe" -c "C:\laragon\www\VenueVisor-main\php.ini" -S localhost:8000 -t public

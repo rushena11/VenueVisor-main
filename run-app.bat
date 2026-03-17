@@ -12,7 +12,7 @@ timeout /t 5 /nobreak >nul
 
 :: 2. Start Laravel Backend
 echo [2/3] Starting Backend Server...
-start "VenueVisor Backend" /MIN "C:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe" -c "C:\laragon\www\VenueVisor\php.ini" -S localhost:8000 -t public
+start "VenueVisor Backend" /MIN "C:\laragon\bin\php\php-8.3.30-Win32-vs16-x64\php.exe" -c "C:\laragon\www\VenueVisor-main\php.ini" -S localhost:8000 -t public
 
 :: 3. Start Frontend (Vite)
 echo [3/3] Starting Frontend...

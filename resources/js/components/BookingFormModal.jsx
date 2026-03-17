@@ -1,24 +1,22 @@
 import React, { useState, useEffect, useRef } from "react"; 
 import axios from "axios";
+import BookingPDF, { 
+  TIME_SLOTS, 
+  AUDIO_ITEMS, 
+  VIDEO_ITEMS, 
+  LIGHTING_ITEMS, 
+  toDateInputValue, 
+  computeInclusiveFromSlots, 
+  parseInclusiveTime, 
+  normalizeKey 
+} from "./PDF/BookingPDF";
+
 // import Logo from "../assets/lnu-logo.png"; 
 // Using the existing logo path from the project
 const Logo = "/assets/LNULogo.png";
 
 const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, onSubmitted, reservationToEdit, onNotify }) => { 
   const isEditing = !!reservationToEdit?.id;
-  const toDateInputValue = (value) => {
-    if (!value) return "";
-    if (typeof value === "string") {
-      const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-    }
-    const d = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(d.getTime())) return "";
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  };
 
   const initialFormData = { 
     orNumber: "", 
@@ -149,19 +147,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       setIsGeneratingPdf(false);
     }
   };
-  const TIME_SLOTS = [
-    { key: "before_8", label: "Before 8:00 AM", start: "06:00", end: "08:00" },
-    { key: "8_10", label: "8:00 AM - 10:00 AM", start: "08:00", end: "10:00" },
-    { key: "10_12", label: "10:00 AM - 12:00 PM", start: "10:00", end: "12:00" },
-    { key: "13_15", label: "1:00 PM - 3:00 PM", start: "13:00", end: "15:00" },
-    { key: "15_17", label: "3:00 PM - 5:00 PM", start: "15:00", end: "17:00" },
-    { key: "17_19", label: "5:00 PM - 7:00 PM", start: "17:00", end: "19:00" },
-    { key: "past_19", label: "Past 7:00 PM", start: "19:00", end: "21:00" }
-  ];
-  const AUDIO_ITEMS = ["Amplifier", "Speaker", "Microphone", "Others"];
-  const VIDEO_ITEMS = ["Video Showing", "Video Editing", "Video Coverage", "Others"];
-  const LIGHTING_ITEMS = ["Follow Spot", "House Light", "Electric Fans", "Others"];
-
+  
   // Effect to pre-fill date if provided from parent
   useEffect(() => {
     if (!isOpen) return;
@@ -334,15 +320,6 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       [item]: { ...(prev[item] || { qty: "", remarks: "" }), [field]: value }
     }));
   };
-  const computeInclusiveFromSlots = (slots) => {
-    if (!slots || slots.length === 0) return { start: "", end: "", text: "" };
-    const map = new Map(TIME_SLOTS.map(s => [s.key, s]));
-    const times = slots.map(k => map.get(k)).filter(Boolean);
-    times.sort((a, b) => a.start.localeCompare(b.start));
-    const start = times[0].start;
-    const end = times.reduce((acc, cur) => (cur.end.localeCompare(acc) > 0 ? cur.end : acc), times[0].end);
-    return { start, end, text: `${start} - ${end}` };
-  };
   useEffect(() => {
     const { text } = computeInclusiveFromSlots(selectedSlots);
     if (text) {
@@ -355,20 +332,6 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
     }
   }, [formData.dateOfUse, formData.inclusiveTime, selectedSlots.length]);
   
-  const parseInclusiveTime = (value) => {
-    if (!value) return { start: "", end: "" };
-    const cleaned = value.replace(/\s+/g, " ").trim();
-    const match = cleaned.match(/(\d{1,2}:\d{2})\s*[-–to]+\s*(\d{1,2}:\d{2})/i);
-    if (match) {
-      return { start: match[1], end: match[2] };
-    }
-    const parts = cleaned.split("-").map(s => s.trim());
-    if (parts.length === 2) {
-      return { start: parts[0], end: parts[1] };
-    }
-    return { start: cleaned, end: cleaned };
-  };
-  const normalizeKey = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const isVenueSelected = (label) => {
     const ll = normalizeKey(label);
     const vn = normalizeKey(venueName);
@@ -502,388 +465,6 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
     }
   };
 
-  const CertificationAndApproval = () => (
-    <div className="flex-1 text-center flex flex-col justify-between mt-0.1">
-      <div className="mb-2">
-        <p className="whitespace-nowrap" style={{ fontFamily: "Arial", fontSize: "10pt" }}>
-          Certification of Availability of Equipment:
-        </p>
-        <input className="mt-0 border-b border-black mx-3 w-[80%] text-center focus:outline-none bg-transparent" />
-        <p style={{ fontFamily: "Arial", fontSize: "9pt" }}>
-          HRDC Audio-Visual Coordinator
-        </p>
-      </div>
-      <div>
-        <p className="mb-0" style={{ fontFamily: "Arial", fontSize: "10pt" }}>
-          Recommending Approval:
-        </p>
-        <input className="mt-0 border-b border-black w-full text-center focus:outline-none bg-transparent" />
-        <p className="whitespace-nowrap" style={{ fontFamily: "Arial", fontSize: "8pt" }}>
-          Building Coordinator (Signature Over Printed Name)
-        </p>
-      </div>
-    </div>
-  );
-
-  const ReservationForm = () => (
-    <div className="relative">
-          {/* HEADER */} 
-          <div className="relative pb-3 leading-none"> 
-            <img 
-              src="/assets/LNULogo.png" 
-              alt="LNU Logo" 
-              className="absolute"
-              style={{
-                left: '3.78cm',
-                top: '0cm',
-                height: '2.25cm',
-                width: '2.3cm'
-              }}
-            /> 
-
-            <div className="text-center space-y-0 pt-1"> 
-              <h2 className="mb-1" style={{ fontFamily: 'Bahnschrift', fontSize: '12pt' }}>Republic of the Philippines</h2> 
-              <h1 className="font-bold mb-1" style={{ fontFamily: 'Bahnschrift', fontSize: '12pt' }}>LEYTE NORMAL UNIVERSITY</h1> 
-              <p className="mb-1" style={{ fontFamily: 'Calibri, sans-serif', fontSize: '12pt' }}>Tacloban City</p> 
-              <p className="font-bold mb-1" style={{ fontFamily: 'Arial, sans-serif', fontSize: '11pt' }}>PHYSICAL PLANT AND FACILITIES</p> 
-              <p className="font-bold mb-0" style={{ fontFamily: 'Arial, sans-serif', fontSize: '50pt' }}>VENUE AND AUDIO-VISUAL FACILITIES RESERVATION FORM</p> 
-            </div> 
-          </div>
-
-          {/* OR DETAILS BOX - Top Right */}
-          <div 
-            className="absolute top-1 left-200 border border-black p-2 bg-white z-10 flex flex-col justify-start"
-            style={{ 
-              fontFamily: 'Calibri(Body)', 
-              fontSize: '11pt',
-              width: '5.62cm',
-              height: '2.09cm'
-            }}
-          >
-            <div className="flex items-center gap-1 mb-0">
-              <label className="w-21 shrink-0">OR Number:</label>
-              <input 
-                name="orNumber" 
-                value={formData.orNumber} 
-                onChange={handleChange} 
-                className="border-b border-black flex-1 w-full focus:outline-none px-1" 
-              />
-            </div>
-            <div className="flex items-center gap-1 mb-0">
-              <label className="w-21 shrink-0">Amount:</label>
-              <input 
-                name="amount" 
-                value={formData.amount} 
-                onChange={handleChange} 
-                className="border-b border-black flex-1 w-full focus:outline-none px-1" 
-              />
-            </div>
-            <div className="flex items-center gap-1">
-              <label className="w-21 shrink-0">Date:</label>
-              <input 
-                name="orDate" 
-                value={formData.orDate} 
-                onChange={handleChange} 
-                className="border-b border-black flex-1 w-full focus:outline-none px-1" 
-              />
-            </div>
-          </div>
-
-          {/* EVENT INFO */} 
-          <div className="grid grid-cols-2 gap-x-14 gap-y-0 mt-0" style={{ fontFamily: 'Arial', fontSize: '12pt' }}> 
-            <div className="flex items-center gap-1 mb-0 space-y-0">
-                <label className="w-25 shrink-0">Activity/Event:</label>
-                <input name="activity" value={formData.activity} onChange={handleChange} className="border-b border-black w-200 focus:outline-none px-1" /> 
-            </div>
-            <div className="flex items-center gap-x-1 gap-y-10 space-y-0">
-                <label className="text-right shrink-0 mb-0">Date of Use:</label>
-                <input type="date" name="dateOfUse" value={formData.dateOfUse} onChange={handleChange} className="border-b border-black w-35 focus:outline-none px-1" /> 
-            </div>
-            <div className="flex items-center gap-1 whitespace-nowrap leading-none">
-                <label className="text-right shrink-0 mb-0">Requesting Party:</label>
-                <input name="requestingParty" value={formData.requestingParty} onChange={handleChange} className="border-b border-black flex-1 w-full focus:outline-none px-1" /> 
-            </div>
-            <div className="flex items-center gap-1 whitespace-nowrap leading-none">
-                <label className="text-right shrink-0 mb-0">Inclusive Time:</label>
-                <input name="inclusiveTime" value={formData.inclusiveTime} onChange={handleChange} className="border-b border-black w-34 focus:outline-none px-1" /> 
-            </div>
-          </div>
-
-          {/* VENUE */} 
-          <h3 className="font-bold mt-3 ml-68" style={{ fontFamily: 'Arial', fontSize: '9pt' }}>VENUE REQUESTED</h3> 
-          <div className="grid grid-cols-2 gap-x-14 text-left" style={{ fontFamily: 'Arial', fontSize: '9pt' }}>
-            <div className="flex flex-col space-y-0">
-                {/* Row 1 */}
-                <div className="flex items-center gap-2 whitespace-nowrap leading-none">
-                    <label className="flex items-center gap-1">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("HRDC Hall") ? "✓" : ""}</span><span>)</span></div>
-                        HRDC Hall
-                    </label>
-                    <label className="flex items-center gap-1">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("AV Studio") ? "✓" : ""}</span><span>)</span></div>
-                        AV Studio
-                    </label>
-                    <label className="flex items-center gap-1">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("Bleacher") ? "✓" : ""}</span><span>)</span></div>
-                        Bleacher
-                    </label>
-                    <label className="flex items-center gap-1">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("Alba Hall") ? "✓" : ""}</span><span>)</span></div>
-                        Alba Hall
-                    </label>
-                </div>
-
-                {/* Row 2 */}
-                <label className="flex items-center gap-1 leading-none space-y-0">
-                    <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("Student Center Mini-Theater") ? "✓" : ""}</span><span>)</span></div>
-                    Student Center Mini-Theater
-                </label>
-
-                {/* Row 3 */}
-                <div className="flex items-center gap-1 whitespace-nowrap leading-none">
-                    <label className="flex items-center gap-1 cursor-pointer">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("CTE Training Hall") || isVenueSelected("CTE Training Hall 2") ? "✓" : ""}</span><span>)</span></div>
-                        CTE Training Hall 2
-                    </label>
-                    <input className="border-b border-black w-5 min-w-[10px] focus:outline-none h-3" />
-                    <span>or</span>
-                    <input className="border-b border-black w-5 min-w-[10px] focus:outline-none h-3" />
-                    <span>3 (specify)</span>
-                </div>
-
-                {/* Row 4 */}
-                <div className="flex items-center gap-4 whitespace-nowrap leading-none">
-                    <label className="flex items-center gap-1 cursor-pointer">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("Admin Ballroom 2F") ? "✓" : ""}</span><span>)</span></div>
-                        Admin Ballroom 2F
-                    </label>
-                    <label className="flex items-center gap-1 cursor-pointer">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("Multi-Purpose Hall 3F") ? "✓" : ""}</span><span>)</span></div>
-                        Multi-Purpose Hall 3F
-                    </label>
-                </div>
-
-                {/* Row 5 */}
-                <div className="flex items-center gap-4 whitespace-nowrap leading-none">
-                    <label className="flex items-center gap-1 cursor-pointer">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><div className="w-3 h-4 relative flex items-center justify-center"><input type="checkbox" className="hidden peer" /><span className="hidden peer-checked:block font-bold text-sm absolute">✓</span></div><span>)</span></div>
-                        Hum. AV Theater
-                    </label>
-                    <label className="flex items-center gap-1 cursor-pointer">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("Dance Studio") ? "✓" : ""}</span><span>)</span></div>
-                        Dance Studio
-                    </label>
-                </div>
-
-                {/* Row 6 */}
-                <label className="flex items-center gap-1 leading-none">
-                    <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("CME Gym") ? "✓" : ""}</span><span>)</span></div>
-                    CME Gym
-                </label>
-            </div>
-
-            <div className="flex flex-col space-y-0">
-                {/* Row 1 */}
-                <div className="flex items-center mr-30 gap-1 whitespace-nowrap leading-none">
-                    <label className="flex items-center gap-1">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("Classroom") ? "✓" : ""}</span><span>)</span></div>
-                        Classroom
-                    </label>
-                    <input className="border-b border-black flex-1 min-w-[10px] focus:outline-none h-3" />
-                    <span>(specify)</span>
-                </div>
-
-                {/* Row 2 */}
-                <div className="flex items-center gap-1 mr-19 whitespace-nowrap leading-none">
-                    <label className="flex items-center gap-1">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("Laboratory Room") ? "✓" : ""}</span><span>)</span></div>
-                        Laboratory Room
-                    </label>
-                    <input className="border-b border-black flex-1 min-w-[50px] focus:outline-none h-3" />
-                    <span>(specify)</span>
-                </div>
-
-                {/* Row 3 */}
-                <label className="flex items-center gap-1 leading-none">
-                    <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("Library Grounds") ? "✓" : ""}</span><span>)</span></div>
-                    Library Grounds
-                </label>
-
-                {/* Row 4 */}
-                <label className="flex items-center gap-1 leading-none">
-                    <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("ORC Quadrangle") || isVenueSelected("ORC Quadrangle/Stage") ? "✓" : ""}</span><span>)</span></div>
-                    ORC Quadrangle/Stage
-                </label>
-
-                {/* Row 5 */}
-                <div className="flex items-center gap-1 mr-27 whitespace-nowrap leading-none">
-                    <label className="flex items-center gap-1">
-                        <div className="flex items-center" style={{ fontFamily: 'Arial', fontSize: '9pt' }}><span>(</span><span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isVenueSelected("Others") ? "✓" : ""}</span><span>)</span></div>
-                        Others
-                    </label>
-                    <input className="border-b border-black flex-1 min-w-[50px] focus:outline-none h-3" />
-                    <span>(specify)</span>
-                </div>
-            </div>
-          </div>
-
-
-          {/* AV FACILITIES */} 
-          <h3 className="font-bold mt-1 text-center" style={{ fontFamily: 'Arial', fontSize: '10pt' }}>AUDIO-VISUAL FACILITIES</h3> 
-
-          <div className="grid grid-cols-3 gap-6" style={{ fontFamily: 'Arial', fontSize: '9pt' }}> 
-
-            {/* AUDIO */} 
-            <div> 
-              <h4 className="font-bold text-center underline mb-1">AUDIO SYSTEM</h4> 
-              <div className="flex justify-end gap-6 mr-1 leading-none space-y-0">
-                 <span className="font-bold space-y-0">Qty</span>
-                 <span className="font-bold">Remarks</span>
-              </div>
-              <div className="space-y-0">
-                {["Amplifier", "Speaker", "Microphone", "Others"].map((item) => {
-                  const isChecked = selectedAudio.includes(item);
-                  const qty = audioDetails[item]?.qty || "";
-                  const remarks = audioDetails[item]?.remarks || "";
-                  return (
-                    <div key={item} className="flex items-center justify-between leading-none">
-                      <label className="flex items-center gap-1 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <span>(</span>
-                          <span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isChecked ? "✓" : ""}</span>
-                          <span>)</span>
-                        </div>
-                        {item}
-                      </label>
-                      <div className="flex gap-2">
-                        <input className="border-b border-black w-13 h-4 text-center focus:outline-none bg-transparent" value={qty} readOnly />
-                        <input className="border-b border-black w-15 h-4 focus:outline-none bg-transparent" value={remarks} readOnly />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div> 
-
-            {/* VIDEO */} 
-            <div> 
-              <h4 className="font-bold text-center underline mb-1">VIDEO SYSTEM</h4> 
-              <div className="flex justify-end gap-6 mr-1 mb-1 leading-none space-y-0">
-                 <span className="font-bold">Qty</span>
-                 <span className="font-bold">Remarks</span>
-              </div>
-              <div className="space-y-0">
-                {["Video Showing", "Video Editing", "Video Coverage", "Others"].map((item) => {
-                  const isChecked = selectedVideo.includes(item);
-                  const qty = videoDetails[item]?.qty || "";
-                  const remarks = videoDetails[item]?.remarks || "";
-                  return (
-                    <div key={item} className="flex items-center justify-between leading-none">
-                      <label className="flex items-center gap-1 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <span>(</span>
-                          <span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isChecked ? "✓" : ""}</span>
-                          <span>)</span>
-                        </div>
-                        {item}
-                      </label>
-                      <div className="flex gap-2">
-                        <input className="border-b border-black w-12 h-4 text-center focus:outline-none bg-transparent" value={qty} readOnly />
-                        <input className="border-b border-black w-15 h-4 focus:outline-none bg-transparent" value={remarks} readOnly />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div> 
-
-            {/* LIGHTING */} 
-            <div> 
-              <h4 className="font-bold text-center underline mb-1">LIGHTING SYSTEM / FANS</h4> 
-              <div className="flex justify-end gap-6 mr-1 mb-1 leading-none">
-                 <span className="font-bold">Qty</span>
-                 <span className="font-bold">Remarks</span>
-              </div>
-              <div className="space-y-0">
-                {["Follow Spot", "House Light", "Electric Fans", "Others"].map((item) => {
-                  const isChecked = selectedLighting.includes(item);
-                  const qty = lightingDetails[item]?.qty || "";
-                  const remarks = lightingDetails[item]?.remarks || "";
-                  return (
-                    <div key={item} className="flex items-center justify-between leading-none">
-                      <label className="flex items-center gap-1 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <span>(</span>
-                          <span className="w-3 h-4 flex items-center justify-center font-bold text-sm">{isChecked ? "✓" : ""}</span>
-                          <span>)</span>
-                        </div>
-                        {item}
-                      </label>
-                      <div className="flex gap-2">
-                        <input className="border-b border-black w-13 h-4 text-center focus:outline-none bg-transparent" value={qty} readOnly />
-                        <input className="border-b border-black w-15 h-4 focus:outline-none bg-transparent" value={remarks} readOnly />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div> 
-
-          </div> 
-
-          {/* FOOTER SECTION */}
-          <div className="mt-3">
-            
-            <div className="flex gap-2 items-end">
-                {/* Left Col */}
-                <div className="flex-1 text-center">
-                    <div className="mb-0.3">
-                        <p className="mb-1" style={{ fontFamily: 'Arial', fontSize: '10pt' }}>Requested by:</p>
-                        <input className="border-b border-black w-full text-center focus:outline-none bg-transparent mt-3" value={formData.requestedBy} readOnly />
-                        <p className="whitespace-nowrap" style={{ fontFamily: 'Arial', fontSize: '8pt' }}>Requesting Party (Signature Over Printed Name)</p>
-                    </div>
-                </div>
-
-                {/* Middle Col */}
-                <CertificationAndApproval />
-
-              {/* Right Col */}
-              <div className="flex-1 mt-0">
-                <div
-                  className="absolute top-111 left-130 border border-black p-2 bg-white z-10 flex flex-col justify-start leading-tight"
-                  style={{
-                    fontFamily: "Calibri",
-                    fontSize: "11pt",
-                    height: "3.3cm",
-                    width: "5.62cm",
-                  }}
-                >
-                  <p className="m-0">Approved by:</p>
-
-                  <div className="mt-5 text-center">
-                    <input className="border-b border-black w-full text-center focus:outline-none bg-transparent h-4" />
-                    <p className="m-0 text-[10pt]">
-                      Director, Physical Plant & Facilities
-                    </p>
-                  </div>
-
-                  <div className="mt-4 flex items-center gap-1">
-                    <span className="font-bold text-[10pt]"style={{ fontFamily: 'Calibri', fontSize: '11pt' }}>DATE RECEIVED:</span>
-                    <input className="border-b border-black w-23 focus:outline-none bg-transparent h-4" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Document Code */}
-            <div className="mt-2">
-                <p className="font-bold" style={{ fontFamily: 'Arial', fontSize: '12pt' }}>F-PPF-001 (09-02-19)</p>
-            </div>
-
-          </div>
-    </div>
-  );
-
   if (!isOpen) return null;
 
   return ( 
@@ -924,8 +505,6 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       </style>
       <div className="relative w-full min-h-full flex justify-center items-start p-4">
         
-        
-
         {!showForm && (
         <div className="relative max-w-2xl w-full mx-auto bg-white rounded-lg shadow p-6 mb-6 print:hidden max-h-[85vh] overflow-y-auto">
           <button 
@@ -1193,10 +772,18 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
             }} 
           > 
             <div className="flex flex-col">
-              <ReservationForm />
-              <div className="mt-2 pt-2 border-t border-black">
-                <ReservationForm />
-              </div>
+              <BookingPDF 
+                formData={formData}
+                venueName={venueName}
+                venueKey={venueKey}
+                selectedAudio={selectedAudio}
+                selectedVideo={selectedVideo}
+                selectedLighting={selectedLighting}
+                audioDetails={audioDetails}
+                videoDetails={videoDetails}
+                lightingDetails={lightingDetails}
+                handleChange={handleChange}
+              />
             </div>
           </div> 
         )}

@@ -736,7 +736,7 @@ const PublicDashboard = () => {
                         <div className="flex items-center gap-3">
                             {user ? (
                                 <div className="flex items-center gap-3">
-                                    <span className="hidden sm:inline text-sm font-medium text-white">Hello, {user.name}</span>
+                                    <span className="hidden sm:inline text-sm font-medium text-white">Hello, {(user?.name || '').trim().split(/\s+/)[0]}</span>
                                     <button 
                                         onClick={handleLogout}
                                         disabled={isLoggingOut}

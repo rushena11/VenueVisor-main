@@ -63,7 +63,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToSignup, onLoggedIn }) => {
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden relative">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden relative max-h-[90vh] flex flex-col">
                 <button 
                     onClick={onClose}
                     className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
@@ -73,12 +73,12 @@ const LoginModal = ({ isOpen, onClose, onSwitchToSignup, onLoggedIn }) => {
                     </svg>
                 </button>
 
-                <div className="p-8">
+                <div className="p-4 sm:p-8 overflow-y-auto">
                     <div className="text-center mb-6">
                         <img 
                             src="/assets/LNULogo.png" 
                             alt="LNU Logo" 
-                            className="h-24 mx-auto mb-4"
+                            className="h-16 sm:h-24 mx-auto mb-4"
                         />
                         <h2 className="text-2xl font-bold text-blue-900">Welcome Back</h2>
                         <p className="text-gray-600 mt-1">Sign in to manage bookings</p>
@@ -210,7 +210,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToSignup, onLoggedIn }) => {
                     </div>
                 </div>
                 
-                <div className="bg-gray-50 px-8 py-4 text-center text-xs text-gray-500 border-t border-gray-100">
+                <div className="bg-gray-50 px-4 sm:px-8 py-4 text-center text-xs text-gray-500 border-t border-gray-100">
                     Protected by VenueVisor Security
                 </div>
             </div>

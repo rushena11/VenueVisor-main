@@ -53,8 +53,8 @@ const BugReportModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden relative">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden relative max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M12 5a7 7 0 00-7 7v0a7 7 0 1014 0v0a7 7 0 00-7-7z"/></svg>
@@ -65,8 +65,8 @@ const BugReportModal = ({ isOpen, onClose }) => {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
-        <div className="px-6 py-5">
-          <div className="max-h-[50vh] overflow-y-auto max-w-lg mx-auto space-y-4">
+        <div className="px-4 sm:px-6 py-5 overflow-y-auto">
+          <div className="max-w-lg mx-auto space-y-4">
             <div>
             <div className="text-[11px] font-semibold text-gray-500 uppercase">Title (optional)</div>
             <input
@@ -106,7 +106,7 @@ const BugReportModal = ({ isOpen, onClose }) => {
             </div>
           </div>
         </div>
-        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+        <div className="px-4 sm:px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-gray-700 hover:bg-gray-100">Cancel</button>
           <button
             onClick={submit}

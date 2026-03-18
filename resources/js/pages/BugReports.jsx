@@ -66,22 +66,22 @@ const BugReports = () => {
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Bug Reports</h1>
           <p className="text-gray-500 text-sm">Triage and track issues reported by users.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <select
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm"
+            className="border border-gray-300 rounded px-3 py-1.5 text-sm flex-1 sm:flex-none"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           >
             <option value="all">All</option>
             {statuses.map(s => <option key={s} value={s}>{label(s)}</option>)}
           </select>
-          <button onClick={load} className="px-3 py-1.5 rounded bg-blue-900 text-white text-sm">Refresh</button>
+          <button onClick={load} className="px-3 py-1.5 rounded bg-blue-900 text-white text-sm whitespace-nowrap">Refresh</button>
         </div>
       </div>
 

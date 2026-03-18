@@ -177,7 +177,7 @@ const Venues = () => {
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <button
           onClick={() => navigate('/dashboard')}
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
@@ -187,18 +187,18 @@ const Venues = () => {
           </svg>
           Back to Dashboard
         </button>
-        <div className="flex items-center gap-2">
+        <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:items-center gap-2">
           <input
             type="text"
             placeholder="Search name or location…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-64"
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-64"
           />
           {isAdmin && (
             <button
               onClick={openAdd}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-900 text-white text-sm hover:bg-blue-800"
+              className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-blue-900 text-white text-sm hover:bg-blue-800 w-full sm:w-auto"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c.552 0 1 .448 1 1v5h5c.552 0 1 .448 1 1s-.448 1-1 1h-5v5c0 .552-.448 1-1 1s-1-.448-1-1v-5H6c-.552 0-1-.448-1-1s.448-1 1-1h5V6c0-.552.448-1 1-1z"/></svg>
               Add

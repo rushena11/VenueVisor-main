@@ -8,6 +8,7 @@ const Layout = () => {
     const user = JSON.parse(localStorage.getItem('user'));
     const [pendingCount, setPendingCount] = useState(0);
     const [hasNew, setHasNew] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     useEffect(() => {
         let mounted = true;
@@ -68,11 +69,11 @@ const Layout = () => {
                                 <img
                                     src="/assets/LNULogo.png"
                                     alt="LNULogo"
-                                    className="h-12 w-auto object-contain"
+                                    className="h-10 sm:h-12 w-auto object-contain"
                                 />
                                 <div className="flex flex-col">
-                                    <span className="text-xl font-bold leading-none">VenueVisor</span>
-                                    <span className="text-xs text-blue-200 tracking-wider">LNU BLUEBOOK</span>
+                                    <span className="text-lg sm:text-xl font-bold leading-none">VenueVisor</span>
+                                    <span className="hidden sm:inline text-xs text-blue-200 tracking-wider">LNU BLUEBOOK</span>
                                 </div>
                             </div>
                             <div className="hidden md:block">
@@ -85,8 +86,8 @@ const Layout = () => {
                                 </div>
                             </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <span>Welcome Admin</span>
+                        <div className="flex items-center gap-2 sm:gap-4">
+                            <span className="hidden sm:inline">Welcome Admin</span>
                             <button
                                 onClick={openPending}
                                 title={hasNew ? 'New reservation request(s)' : 'Pending reservation requests'}
@@ -102,11 +103,63 @@ const Layout = () => {
                                     </span>
                                 )}
                             </button>
-                            <button onClick={handleLogout} className="bg-yellow-500 hover:bg-yellow-600 text-blue-900 font-bold py-1.5 px-4 rounded flex items-center gap-2 transition-colors">
+                            <button
+                                type="button"
+                                onClick={() => setIsMobileMenuOpen(v => !v)}
+                                className="md:hidden inline-flex items-center justify-center p-2 rounded hover:bg-blue-800 transition-colors"
+                                aria-label="Open menu"
+                                aria-expanded={isMobileMenuOpen}
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileMenuOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
+                                </svg>
+                            </button>
+                            <button onClick={handleLogout} className="bg-yellow-500 hover:bg-yellow-600 text-blue-900 font-bold py-1.5 px-3 sm:px-4 rounded flex items-center gap-2 transition-colors">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
-                            Logout</button>
+                            <span className="hidden sm:inline">Logout</span></button>
                         </div>
                     </div>
+                    {isMobileMenuOpen && (
+                        <div className="md:hidden border-t border-blue-800 py-2">
+                            <div className="space-y-1">
+                                <Link
+                                    to="/dashboard"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className={`block px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 ${location.pathname.startsWith('/dashboard') ? 'bg-blue-800' : ''}`}
+                                >
+                                    Dashboard
+                                </Link>
+                                <Link
+                                    to="/reservation/new"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className={`block px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 ${location.pathname.startsWith('/reservation') ? 'bg-blue-800' : ''}`}
+                                >
+                                    New Reservation
+                                </Link>
+                                <Link
+                                    to="/venues"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className={`block px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 ${location.pathname.startsWith('/venues') ? 'bg-blue-800' : ''}`}
+                                >
+                                    View Venues
+                                </Link>
+                                <Link
+                                    to="/bug-reports"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className={`block px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 ${location.pathname.startsWith('/bug-reports') ? 'bg-blue-800' : ''}`}
+                                >
+                                    Bug Reports
+                                </Link>
+                                <Link
+                                    to="/reports"
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                    className={`block px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 ${location.pathname.startsWith('/reports') ? 'bg-blue-800' : ''}`}
+                                >
+                                    View Reports
+                                </Link>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </nav>
 

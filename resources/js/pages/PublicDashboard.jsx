@@ -33,6 +33,7 @@ const PublicDashboard = () => {
     const [isBugModalOpen, setIsBugModalOpen] = useState(false);
     const [isRequestsModalOpen, setIsRequestsModalOpen] = useState(false);
     const [isReservationDetailsOpen, setIsReservationDetailsOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [selectedReservationForDetails, setSelectedReservationForDetails] = useState(null);
     const [bookingDate, setBookingDate] = useState(null);
     const [reservationToEdit, setReservationToEdit] = useState(null);
@@ -51,9 +52,133 @@ const PublicDashboard = () => {
     };
     const normalizeReservations = (arr) => Array.isArray(arr) ? arr.map(r => ({ ...r, date_of_use: dateOnly(r?.date_of_use) })) : [];
 
+    const storageKey = (userId, name) => `vv:${name}:${userId}`;
+    const safeJsonParse = (value, fallback) => {
+        try {
+            const parsed = JSON.parse(value);
+            return typeof parsed === 'undefined' || parsed === null ? fallback : parsed;
+        } catch {
+            return fallback;
+        }
+    };
+    const getUserId = (u) => (u && typeof u.id !== 'undefined' && u.id !== null) ? String(u.id) : null;
+    const loadUnreadApprovedIds = (userId) => {
+        if (!userId) return new Set();
+        const raw = localStorage.getItem(storageKey(userId, 'unreadApprovedIds'));
+        const ids = safeJsonParse(raw, []);
+        return new Set(Array.isArray(ids) ? ids : []);
+    };
+    const persistUnreadApprovedIds = (userId) => {
+        if (!userId) return;
+        localStorage.setItem(
+            storageKey(userId, 'unreadApprovedIds'),
+            JSON.stringify(Array.from(unreadApprovedIdsRef.current || []))
+        );
+    };
+    const loadStatusByIdMap = (userId) => {
+        if (!userId) return new Map();
+        const raw = localStorage.getItem(storageKey(userId, 'reservationStatusById'));
+        const obj = safeJsonParse(raw, {});
+        const map = new Map();
+        if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+            Object.entries(obj).forEach(([id, status]) => {
+                if (!id) return;
+                map.set(Number(id), (status || '').toLowerCase());
+            });
+        }
+        return map;
+    };
+    const persistStatusByIdMap = (userId) => {
+        if (!userId) return;
+        const obj = {};
+        statusMapRef.current.forEach((status, id) => {
+            obj[String(id)] = (status || '').toLowerCase();
+        });
+        localStorage.setItem(storageKey(userId, 'reservationStatusById'), JSON.stringify(obj));
+    };
+    const hydrateNotificationState = (activeUser) => {
+        const uid = getUserId(activeUser);
+        if (!uid) return;
+        unreadApprovedIdsRef.current = loadUnreadApprovedIds(uid);
+        setUnreadApprovedCount(unreadApprovedIdsRef.current.size);
+        statusMapRef.current = loadStatusByIdMap(uid);
+    };
+    const clearNotificationState = (activeUser) => {
+        const uid = getUserId(activeUser);
+        if (!uid) return;
+        try {
+            localStorage.removeItem(storageKey(uid, 'unreadApprovedIds'));
+            localStorage.removeItem(storageKey(uid, 'reservationStatusById'));
+        } catch {}
+    };
+    const reservationBelongsToUser = (r, activeUser) => {
+        const uid = getUserId(activeUser);
+        if (!uid) return true;
+        if (typeof r?.user_id !== 'undefined' && r.user_id !== null) return String(r.user_id) === uid;
+        if (typeof r?.user?.id !== 'undefined' && r.user?.id !== null) return String(r.user.id) === uid;
+        return true;
+    };
+    const applyReservationUpdates = (latest, activeUser) => {
+        const uid = getUserId(activeUser);
+        const shouldTrackUnread = !!uid && activeUser?.role === 'requester';
+        const prevMap = statusMapRef.current;
+        latest.forEach(r => {
+            const prev = prevMap.get(r.id);
+            const nextStatus = (r?.status || '').toLowerCase();
+            const changed = prev && prev !== nextStatus;
+            if (changed) {
+                const isMine = reservationBelongsToUser(r, activeUser);
+                if (
+                    shouldTrackUnread &&
+                    isMine &&
+                    !isRequestsModalOpen &&
+                    nextStatus === 'approved' &&
+                    prev !== 'approved' &&
+                    !unreadApprovedIdsRef.current.has(r.id)
+                ) {
+                    unreadApprovedIdsRef.current.add(r.id);
+                    setUnreadApprovedCount(c => c + 1);
+                    persistUnreadApprovedIds(uid);
+                }
+                const type = nextStatus === 'approved' ? 'success' : nextStatus === 'rejected' ? 'error' : 'info';
+                const venue = Object.keys(venueNames).find(k => r[k]);
+                const venueLabel = venue ? venueNames[venue] : 'Venue';
+                const message = `Request ${r.activity_event || ''} on ${r.date_of_use} at ${venueLabel} ${nextStatus.toUpperCase()}`;
+                setToasts(t => [...t, { id: `${r.id}-${Date.now()}`, message, type }]);
+            }
+            prevMap.set(r.id, nextStatus);
+        });
+        if (uid) {
+            persistStatusByIdMap(uid);
+        }
+        setReservations(latest);
+    };
+    const upsertReservationInCaches = (reservation, activeUser) => {
+        if (!reservation?.id) return;
+        statusMapRef.current.set(reservation.id, (reservation?.status || '').toLowerCase());
+        const uid = getUserId(activeUser);
+        if (uid) {
+            persistStatusByIdMap(uid);
+        }
+    };
+    const removeReservationFromCaches = (reservationId, activeUser) => {
+        if (!reservationId) return;
+        statusMapRef.current.delete(reservationId);
+        if (unreadApprovedIdsRef.current.has(reservationId)) {
+            unreadApprovedIdsRef.current.delete(reservationId);
+            setUnreadApprovedCount(unreadApprovedIdsRef.current.size);
+        }
+        const uid = getUserId(activeUser);
+        if (uid) {
+            persistStatusByIdMap(uid);
+            persistUnreadApprovedIds(uid);
+        }
+    };
+
     const handleLogout = async () => {
         setIsLoggingOut(true);
         const currentToken = localStorage.getItem('token');
+        const userBeforeLogout = user;
         try {
             if (currentToken) {
                 await axios.post('/api/logout', {}, { headers: { Authorization: `Bearer ${currentToken}` }, timeout: 3000 });
@@ -61,6 +186,7 @@ const PublicDashboard = () => {
         } catch {}
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        clearNotificationState(userBeforeLogout);
         setUser(null);
         setToken(null);
         setIsRequestsModalOpen(false);
@@ -69,7 +195,7 @@ const PublicDashboard = () => {
         setSelectedDay(null);
         setUnreadApprovedCount(0);
         unreadApprovedIdsRef.current = new Set();
-        fetchData(null);
+        fetchData(null, null);
         setIsLoggingOut(false);
     };
 
@@ -124,6 +250,11 @@ const PublicDashboard = () => {
         }
         unreadApprovedIdsRef.current = new Set();
         setUnreadApprovedCount(0);
+        const uid = getUserId(user);
+        if (uid) {
+            try { localStorage.removeItem(storageKey(uid, 'unreadApprovedIds')); } catch {}
+            persistStatusByIdMap(uid);
+        }
         setIsRequestsModalOpen(true);
     };
 
@@ -156,7 +287,7 @@ const PublicDashboard = () => {
     const venueKeys = Object.keys(venueNames);
     const inferVenueKey = (r) => venueKeys.find(k => !!r?.[k]) || null;
 
-    const fetchData = async (tokenOverride) => {
+    const fetchData = async (tokenOverride, userOverride) => {
         setLoading(true);
         try {
             const activeToken = typeof tokenOverride !== 'undefined' ? tokenOverride : token;
@@ -168,7 +299,12 @@ const PublicDashboard = () => {
             ]);
 
             setVenues(venuesRes.data);
-            setReservations(normalizeReservations(resRes.data));
+            const latest = normalizeReservations(resRes.data);
+            if (activeToken) {
+                applyReservationUpdates(latest, userOverride || user);
+            } else {
+                setReservations(latest);
+            }
         } catch (error) {
             console.error("Error fetching data", error);
         } finally {
@@ -178,13 +314,18 @@ const PublicDashboard = () => {
 
     // Check for logged in user
     useEffect(() => {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            setUser(JSON.parse(storedUser));
+        let parsedUser = null;
+        try {
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) parsedUser = JSON.parse(storedUser);
+        } catch {}
+        if (parsedUser) {
+            setUser(parsedUser);
+            hydrateNotificationState(parsedUser);
         }
         const storedToken = localStorage.getItem('token');
         setToken(storedToken);
-        fetchData(storedToken);
+        fetchData(storedToken, parsedUser);
     }, []);
 
     // Realtime venue status via Server-Sent Events (instant, no polling on client)
@@ -375,24 +516,7 @@ const PublicDashboard = () => {
             try {
                 const res = await axios.get('/api/reservations', { headers }).catch(() => ({ data: [] }));
                 const latest = normalizeReservations(res.data);
-                const prevMap = statusMapRef.current;
-                latest.forEach(r => {
-                    const prev = prevMap.get(r.id);
-                    if (prev && prev !== r.status) {
-                        const isMine = user ? (r?.user?.id ? r.user.id === user.id : (r?.requested_by ? r.requested_by === user.name : true)) : true;
-                        if (isMine && r.status === 'approved' && prev !== 'approved' && !unreadApprovedIdsRef.current.has(r.id)) {
-                            unreadApprovedIdsRef.current.add(r.id);
-                            setUnreadApprovedCount(c => c + 1);
-                        }
-                        const type = r.status === 'approved' ? 'success' : r.status === 'rejected' ? 'error' : 'info';
-                        const venue = Object.keys(venueNames).find(k => r[k]);
-                        const venueLabel = venue ? venueNames[venue] : 'Venue';
-                        const message = `Request ${r.activity_event || ''} on ${r.date_of_use} at ${venueLabel} ${r.status.toUpperCase()}`;
-                        setToasts(t => [...t, { id: `${r.id}-${Date.now()}`, message, type }]);
-                    }
-                    prevMap.set(r.id, r.status);
-                });
-                setReservations(latest);
+                applyReservationUpdates(latest, user);
             } catch {}
         };
         pollingRef.current = setInterval(poll, 15000);
@@ -400,13 +524,7 @@ const PublicDashboard = () => {
         return () => {
             if (pollingRef.current) clearInterval(pollingRef.current);
         };
-    }, [token, user]);
-
-    useEffect(() => {
-        const map = new Map();
-        reservations.forEach(r => map.set(r.id, r.status));
-        statusMapRef.current = map;
-    }, [reservations]);
+    }, [token, user, isRequestsModalOpen]);
 
     const removeToast = (id) => {
         setToasts(ts => ts.filter(t => t.id !== id));
@@ -466,7 +584,12 @@ const PublicDashboard = () => {
                 onStatusUpdate={() => {}}
                 onReservationUpdate={(updated) => {
                     if (!updated?.id) return;
-                    setReservations(prev => prev.map(r => (r?.id === updated.id ? { ...r, ...updated } : r)));
+                    setReservations(prev => prev.map(r => {
+                        if (r?.id !== updated.id) return r;
+                        const merged = { ...r, ...updated };
+                        upsertReservationInCaches(merged, user);
+                        return merged;
+                    }));
                 }}
                 onEdit={(r) => {
                     setIsReservationDetailsOpen(false);
@@ -478,6 +601,7 @@ const PublicDashboard = () => {
                     setIsBookingModalOpen(true);
                 }}
                 onDeleted={(id) => {
+                    removeReservationFromCaches(id, user);
                     setReservations(prev => prev.filter(r => r?.id !== id));
                     setSelectedReservationForDetails(null);
                     setIsReservationDetailsOpen(false);
@@ -507,15 +631,6 @@ const PublicDashboard = () => {
                                     </div>
                                 )}
                             </div>
-                            <button
-                                onClick={() => setIsRequestsModalOpen(false)}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
-                                aria-label="Close requests"
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </button>
                         </div>
                         <div className="p-6 max-h-[70vh] overflow-y-auto">
                             {reservations.length === 0 ? (
@@ -585,17 +700,17 @@ const PublicDashboard = () => {
             )}
             {/* Top Header */}
             <header className="bg-blue-900 text-white">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
                     {/* Logo Section */}
-                    <div className="flex items-center space-x-3 w-1/4">
+                    <div className="flex items-center gap-3 min-w-0">
                         <img
                             src="/assets/LNULogo.png"
                             alt="LNU Logo"
-                            className="h-12 w-auto"
+                            className="h-10 sm:h-12 w-auto shrink-0"
                         />
                         <div className="flex flex-col">
-                            <span className="text-xl font-bold leading-none">VenueVisor</span>
-                            <span className="text-xs font-semibold text-yellow-500 tracking-wider">LNU BLUEBOOK</span>
+                            <span className="text-lg sm:text-xl font-bold leading-none truncate">VenueVisor</span>
+                            <span className="hidden sm:inline text-xs font-semibold text-yellow-500 tracking-wider">LNU BLUEBOOK</span>
                         </div>
                     </div>
 
@@ -617,40 +732,101 @@ const PublicDashboard = () => {
                     </div>
 
                     {/* Right Actions */}
-                    <div className="flex items-center space-x-3 w-1/4 justify-end">
+                    <div className="flex items-center gap-2 justify-end shrink-0">
                         <div className="flex items-center gap-3">
                             {user ? (
                                 <div className="flex items-center gap-3">
-                                    <span className="text-sm font-medium text-white">Hello, {user.name}</span>
+                                    <span className="hidden sm:inline text-sm font-medium text-white">Hello, {user.name}</span>
                                     <button 
                                         onClick={handleLogout}
                                         disabled={isLoggingOut}
-                                        className="bg-yellow-500 hover:bg-yellow-600 text-blue-900 font-bold py-1.5 px-4 rounded flex items-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                        className="bg-yellow-500 hover:bg-yellow-600 text-blue-900 font-bold py-1.5 px-3 sm:px-4 rounded flex items-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-                                        {isLoggingOut ? 'Logging out...' : 'Logout'}
+                                        <span className="hidden sm:inline">{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
                                     </button>
                                 </div>
                             ) : (
                                 <button 
                                     onClick={openLogin}
                                     disabled={isOpeningLogin || isLoginModalOpen}
-                                    className="bg-yellow-500 hover:bg-yellow-600 text-blue-900 font-bold py-1.5 px-4 rounded flex items-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="bg-yellow-500 hover:bg-yellow-600 text-blue-900 font-bold py-1.5 px-3 sm:px-4 rounded flex items-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
-                                    {isOpeningLogin ? 'Opening...' : 'Login'}
+                                    <span className="hidden sm:inline">{isOpeningLogin ? 'Opening...' : 'Login'}</span>
                                 </button>
                             )}
                         </div>
+                        <button
+                            type="button"
+                            onClick={() => setIsMobileMenuOpen(v => !v)}
+                            className="md:hidden inline-flex items-center justify-center p-2 rounded hover:bg-blue-800 transition-colors"
+                            aria-label="Open menu"
+                            aria-expanded={isMobileMenuOpen}
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isMobileMenuOpen ? 'M6 18L18 6M6 6l12 12' : 'M4 6h16M4 12h16M4 18h16'} />
+                            </svg>
+                        </button>
                     </div>
                 </div>
+                {isMobileMenuOpen && (
+                    <div className="md:hidden border-t border-blue-800">
+                        <div className="max-w-7xl mx-auto px-4 py-3 space-y-1 text-sm text-blue-100">
+                            <button
+                                type="button"
+                                onClick={() => { setIsFaqsModalOpen(true); setIsMobileMenuOpen(false); }}
+                                className="w-full text-left px-3 py-2 rounded hover:bg-blue-800 hover:text-white transition-colors"
+                            >
+                                FAQs
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setIsManualModalOpen(true); setIsMobileMenuOpen(false); }}
+                                className="w-full text-left px-3 py-2 rounded hover:bg-blue-800 hover:text-white transition-colors"
+                            >
+                                User Manual
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setIsBugModalOpen(true); setIsMobileMenuOpen(false); }}
+                                className="w-full text-left px-3 py-2 rounded hover:bg-blue-800 hover:text-white transition-colors"
+                            >
+                                See a bug? Report
+                            </button>
+                            <div className="pt-2">
+                                {user ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }}
+                                        disabled={isLoggingOut}
+                                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-blue-900 font-bold py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                                        {isLoggingOut ? 'Logging out...' : 'Logout'}
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setIsMobileMenuOpen(false); openLogin(); }}
+                                        disabled={isOpeningLogin || isLoginModalOpen}
+                                        className="w-full bg-yellow-500 hover:bg-yellow-600 text-blue-900 font-bold py-2 px-4 rounded flex items-center justify-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" /></svg>
+                                        {isOpeningLogin ? 'Opening...' : 'Login'}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </header>
 
             {/* Month Navigation */}
             <div className="bg-blue-900 text-blue-200 shadow-md">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-4">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 py-2 sm:py-0">
                     {/* Year Selector */}
-                    <div className="flex-shrink-0 border-r border-blue-700 pr-4">
+                    <div className="flex-shrink-0 sm:border-r border-blue-700 sm:pr-4">
                          <select 
                             className="bg-blue-800 border border-blue-700 text-white text-sm rounded px-3 py-1.5 focus:outline-none hover:bg-blue-700 transition-colors cursor-pointer font-bold"
                             value={selectedYear}
@@ -665,7 +841,7 @@ const PublicDashboard = () => {
                         </select>
                     </div>
 
-                    <div className="flex-1 flex items-center justify-between overflow-x-auto no-scrollbar py-2 gap-2">
+                    <div className="w-full sm:flex-1 flex items-center justify-between overflow-x-auto no-scrollbar gap-2">
                         {months.map((month, index) => (
                             <button
                                 key={month}
@@ -714,72 +890,76 @@ const PublicDashboard = () => {
                             )}
                         </button>
                     </div>
-                    {/* Days Header */}
-                    <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
-                        {daysOfWeek.map(day => (
-                            <div key={day} className="py-2 text-center text-xs font-semibold text-gray-500 tracking-wide uppercase">
-                                {day}
+                    <div className="overflow-x-auto">
+                        <div className="min-w-[720px]">
+                            {/* Days Header */}
+                            <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
+                                {daysOfWeek.map(day => (
+                                    <div key={day} className="py-2 text-center text-xs font-semibold text-gray-500 tracking-wide uppercase">
+                                        {day}
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
 
-                    {/* Calendar Days */}
-                    <div className="grid grid-cols-7 bg-gray-200 gap-px border-b border-gray-200">
-                        {generateCalendarDays().map((date, index) => {
-                            const { total, available: _unusedAvailable } = getAvailability(date);
-                            const isToday = date && new Date().toDateString() === date.toDateString();
-                            const { approved, pending, rejected } = getVenueStatusCountsForDate(date);
-                            const approvedPct = total > 0 ? (approved / total) * 100 : 0;
-                            const availableDisplay = total - approved;
-                            let pendingRequestsCount = 0;
-                            if (date) {
-                                const dateStr = dateKey(date);
-                                pendingRequestsCount = reservations.filter(
-                                    r => r.date_of_use === dateStr && r.status === 'pending'
-                                ).length;
-                            }
-                            
-                            return (
-                                <div 
-                                    key={index} 
-                                    onClick={() => date && handleDayClick(date)}
-                                    className={`min-h-[120px] bg-white p-2 relative group hover:bg-gray-50 transition-colors ${!date ? 'bg-gray-50 cursor-default' : 'cursor-pointer'}`}
-                                >
-                                    {date && (
-                                        <>
-                                            <div className="flex justify-between items-start">
-                                                <span className={`text-sm font-medium ${isToday ? 'bg-blue-900 text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-black-900'}`}>
-                                                    {date.getDate()}
-                                                </span>
-                                                <div className="flex flex-col items-end">
-                                                    <span className="text-[11px] text-gray-500 leading-tight">Availability</span>
-                                                    <span className={`text-xs font-bold ${availableDisplay === 0 ? 'text-red-900' : 'text-gray-700'}`}>
-                                                        {availableDisplay}/{total}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            
-                                            {/* Occupancy Bar: approved only */}
-                                            <div className="w-full bg-indigo-100 rounded-full h-1.5 mt-2 mb-2">
-                                                <div 
-                                                    className="h-1.5 rounded-full bg-indigo-400"
-                                                    style={{ width: `${approvedPct}%` }}
-                                                ></div>
-                                            </div>
+                            {/* Calendar Days */}
+                            <div className="grid grid-cols-7 bg-gray-200 gap-px border-b border-gray-200">
+                                {generateCalendarDays().map((date, index) => {
+                                    const { total, available: _unusedAvailable } = getAvailability(date);
+                                    const isToday = date && new Date().toDateString() === date.toDateString();
+                                    const { approved, pending, rejected } = getVenueStatusCountsForDate(date);
+                                    const approvedPct = total > 0 ? (approved / total) * 100 : 0;
+                                    const availableDisplay = total - approved;
+                                    let pendingRequestsCount = 0;
+                                    if (date) {
+                                        const dateStr = dateKey(date);
+                                        pendingRequestsCount = reservations.filter(
+                                            r => r.date_of_use === dateStr && r.status === 'pending'
+                                        ).length;
+                                    }
+                                    
+                                    return (
+                                        <div 
+                                            key={index} 
+                                            onClick={() => date && handleDayClick(date)}
+                                            className={`min-h-[96px] sm:min-h-[120px] bg-white p-1.5 sm:p-2 relative group hover:bg-gray-50 transition-colors ${!date ? 'bg-gray-50 cursor-default' : 'cursor-pointer'}`}
+                                        >
+                                            {date && (
+                                                <>
+                                                    <div className="flex flex-col items-start">
+                                                        <span className={`text-sm font-medium ${isToday ? 'bg-blue-900 text-white w-6 h-6 rounded-full flex items-center justify-center' : 'text-black-900'}`}>
+                                                            {date.getDate()}
+                                                        </span>
+                                                        <div className="mt-3 sm:mt-5">
+                                                            <div className="text-[11px] text-gray-500 leading-tight">Availability</div>
+                                                            <div className={`text-xs font-bold ${availableDisplay === 0 ? 'text-red-900' : 'text-gray-700'}`}>
+                                                                {availableDisplay}/{total}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Occupancy Bar: approved only */}
+                                                    <div className="w-full bg-indigo-100 rounded-full h-1.5 mt-3 mb-1">
+                                                        <div 
+                                                            className="h-1.5 rounded-full bg-indigo-400"
+                                                            style={{ width: `${approvedPct}%` }}
+                                                        ></div>
+                                                    </div>
 
-                                            {/* Pending badges */}
-                                            {pendingRequestsCount > 0 && (
-                                                <div className="mt-1">
-                                                    <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-800 border border-indigo-200">
-                                                        {pendingRequestsCount}Semi
-                                                    </span>
-                                                </div>
+                                                    {/* Pending badges */}
+                                                    {pendingRequestsCount > 0 && (
+                                                        <div className="mt-1">
+                                                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                                                {pendingRequestsCount}Semi
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
-                                        </>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -936,7 +1116,8 @@ const PublicDashboard = () => {
                     setToken(newToken || localStorage.getItem('token'));
                     setIsLoginModalOpen(false);
                     setIsSignupModalOpen(false);
-                    fetchData(newToken || localStorage.getItem('token'));
+                    hydrateNotificationState(loggedInUser || null);
+                    fetchData(newToken || localStorage.getItem('token'), loggedInUser || null);
                 }}
             />
             
@@ -960,8 +1141,14 @@ const PublicDashboard = () => {
                     if (normalized) {
                         setReservations(prev => {
                             if (normalized.id && prev.some(r => r?.id === normalized.id)) {
-                                return prev.map(r => (r?.id === normalized.id ? { ...r, ...normalized } : r));
+                                return prev.map(r => {
+                                    if (r?.id !== normalized.id) return r;
+                                    const merged = { ...r, ...normalized };
+                                    upsertReservationInCaches(merged, user);
+                                    return merged;
+                                });
                             }
+                            upsertReservationInCaches(normalized, user);
                             return [...prev, normalized];
                         });
                     }

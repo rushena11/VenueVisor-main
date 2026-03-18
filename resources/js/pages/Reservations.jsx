@@ -117,7 +117,7 @@ const Reservations = () => {
                 </button>
             </div>
             <h2 className="text-2xl font-bold mb-4 text-gray-800">Reservations</h2>
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
                 {statusFilter === 'all' && (
                     <div className="inline-flex rounded-lg overflow-hidden border bg-white shadow-sm">
                         <button
@@ -149,7 +149,7 @@ const Reservations = () => {
                 <input
                     type="text"
                     placeholder="Search event, party, date, ID, or OR..."
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-64"
+                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-64"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />

@@ -113,16 +113,17 @@ const BookingPDF = ({
             <div className="[font-family:Arial] text-[11pt] font-bold">
               PHYSICAL PLANT AND FACILITIES
             </div>
-            <div className="[font-family:Arial] text-[11pt]">
+            <div className="h-[0.8mm]" />
+            <div className="[font-family:Arial] text-[11pt] font-bold">
               VENUE AND AUDIO-VISUAL FACILITIES RESERVATION FORM
             </div>
           </div>
         </div>
 
-        <div className="w-[52.1mm] h-[20.9mm] border border-black p-[6px] [font-family:Calibri] text-[11pt]">
+        <div className="w-[52.1mm] h-[20.9mm] border border-red-500 p-[6px] [font-family:Calibri] text-[11pt]">
           <div className="grid grid-cols-[42%_1fr] gap-x-2 gap-y-1">
             <div>OR Number:</div>
-            <div className="border-b border-red">
+            <div className="border-b border-black">
               <span className="inline-block w-full">{formData.orNumber || "\u00A0"}</span>
             </div>
             <div>Amount:</div>

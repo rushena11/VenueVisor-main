@@ -34,7 +34,7 @@ const UserManualModal = ({ isOpen, onClose }) => {
   ];
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden relative">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl overflow-hidden relative max-h-[90vh] flex flex-col">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
@@ -45,7 +45,7 @@ const UserManualModal = ({ isOpen, onClose }) => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-        <div className="p-8">
+        <div className="p-4 sm:p-8 overflow-y-auto">
           <div className="text-center mb-8">
             <div className="w-12 h-12 rounded-full bg-yellow-100 text-yellow-700 flex items-center justify-center mx-auto mb-3">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6l4 2"/></svg>
@@ -53,7 +53,7 @@ const UserManualModal = ({ isOpen, onClose }) => {
             <h2 className="text-3xl font-bold text-blue-900">User Manual</h2>
             <p className="text-gray-600 mt-1">A step-by-step guide to using VenueVisor.</p>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-h-[55vh] overflow-y-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-5">
               {steps.map((s, i) => (
                 <div key={i} className="flex gap-4">
@@ -127,7 +127,7 @@ const UserManualModal = ({ isOpen, onClose }) => {
             </div>
           </div>
         </div>
-        <div className="bg-gray-50 px-8 py-4 text-center text-xs text-gray-500 border-t border-gray-100">
+        <div className="bg-gray-50 px-4 sm:px-8 py-4 text-center text-xs text-gray-500 border-t border-gray-100">
           VenueVisor • LNU Bluebook
         </div>
       </div>

@@ -43,6 +43,16 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const printRef = useRef(null);
   const shouldRenderForm = isGeneratingPdf;
+  const getStoredUserName = () => {
+    try {
+      const raw = localStorage.getItem("user");
+      if (!raw) return "";
+      const user = JSON.parse(raw);
+      return (user?.name || "").trim();
+    } catch {
+      return "";
+    }
+  };
   const openPrintSection = async () => {
     if (isGeneratingPdf) return;
     const popup = window.open("about:blank", "_blank");
@@ -172,7 +182,8 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
     if (!reservationToEdit) {
       setFormData(prev => {
         const dateOfUse = toDateInputValue(selectedDate) || prev.dateOfUse || "";
-        return { ...initialFormData, dateOfUse };
+        const requestedBy = getStoredUserName();
+        return { ...initialFormData, dateOfUse, requestedBy };
       });
       setSelectedSlots([]);
       setAcknowledged(false);
@@ -506,7 +517,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       <div className="relative w-full min-h-full flex justify-center items-start p-4">
         
         {!showForm && (
-        <div className="relative max-w-2xl w-full mx-auto bg-white rounded-lg shadow p-6 mb-6 print:hidden max-h-[85vh] overflow-y-auto">
+        <div className="relative max-w-2xl w-full mx-auto bg-white rounded-lg shadow p-4 sm:p-6 mb-6 print:hidden max-h-[90vh] overflow-y-auto">
           <button 
             onClick={onClose}
             className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 print:hidden"
@@ -539,7 +550,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                 value={formData.requestedBy}
                 onChange={handleChange}
                 placeholder="e.g. John J. Doe"
-                className="w-full border border-gray-400 rounded-md p-2 text-sm"
+                className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
               />
             </div>
             <div>
@@ -549,7 +560,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                 value={formData.activity}
                 onChange={handleChange}
                 placeholder="e.g. Annual General Assembly"
-                className="w-full border rounded-md p-2 text-sm border-gray-400"
+                className="w-full border rounded-md p-2 text-sm border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
               />
             </div>
             <div>
@@ -559,7 +570,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                 value={formData.requestingParty}
                 onChange={handleChange}
                 placeholder="e.g. College of Arts & Sciences"
-                className="w-full border rounded-md p-2 text-sm border-gray-400"
+                className="w-full border rounded-md p-2 text-sm border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
               />
             </div>
             <div>
@@ -569,7 +580,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                 value={formData.paxCount}
                 onChange={handleChange}
                 placeholder="e.g. 120"
-                className="w-full border rounded-md p-2 text-sm border-gray-400"
+                className="w-full border rounded-md p-2 text-sm border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
               />
             </div>
           </div>
@@ -579,11 +590,11 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
               {TIME_SLOTS.map(s => (
                 <label
                   key={s.key}
-                  className={`flex items-center gap-3 border rounded-lg px-3 py-2 cursor-pointer transition ${
-                    selectedSlots.includes(s.key) ? 'border-white-500 bg-blue-50' : 'border-blue-200 bg-blue-50'
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition border-[1px] border-solid focus-within:outline-none focus-within:ring-2 focus-within:ring-gray-100 ${
+                    selectedSlots.includes(s.key) ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'
                   }`}
                 >
-                  <input type="checkbox" checked={selectedSlots.includes(s.key)} onChange={() => toggleSlot(s.key)} />
+                  <input className="h-4 w-4 accent-blue-700" type="checkbox" checked={selectedSlots.includes(s.key)} onChange={() => toggleSlot(s.key)} />
                   <span className="text-sm">{s.label}</span>
                 </label>
               ))}
@@ -603,6 +614,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                     <div key={item} className="flex items-center gap-3">
                       <label className="flex items-center gap-2 min-w-[140px]">
                         <input
+                          className="h-4 w-4 accent-indigo-700"
                           type="checkbox"
                           checked={selectedAudio.includes(item)}
                           onChange={() => toggleAudio(item)}
@@ -612,14 +624,14 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                       {selectedAudio.includes(item) && (
                         <>
                           <input
-                            className="border border-gray-400 rounded px-2 h-5 w-13 text-center text-sm"
+                            className="border border-gray-400 rounded px-2 h-5 w-13 text-center text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                             type="number"
                             placeholder="0"
                             value={(audioDetails[item]?.qty) || ""}
                             onChange={(e) => updateAudioDetail(item, "qty", e.target.value)}
                           />
                           <input
-                            className="border border-gray-400 rounded px-2 h-5 flex-1 text-sm"
+                            className="border border-gray-400 rounded px-2 h-5 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                             type="text"
                             placeholder="Remarks"
                             value={(audioDetails[item]?.remarks) || ""}
@@ -641,6 +653,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                     <div key={item} className="flex items-center gap-3">
                       <label className="flex items-center gap-2 min-w-[140px]">
                         <input
+                          className="h-4 w-4 accent-indigo-700"
                           type="checkbox"
                           checked={selectedVideo.includes(item)}
                           onChange={() => toggleVideo(item)}
@@ -650,14 +663,14 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                       {selectedVideo.includes(item) && (
                         <>
                           <input
-                            className="border border-gray-400 rounded px-2 h-5 w-13 text-center text-sm"
+                            className="border border-gray-400 rounded px-2 h-5 w-13 text-center text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                             type="number"
                             placeholder="0"
                             value={(videoDetails[item]?.qty) || ""}
                             onChange={(e) => updateVideoDetail(item, "qty", e.target.value)}
                           />
                           <input
-                            className="border border-gray-400 rounded px-2 h-5 flex-1 text-sm"
+                            className="border border-gray-400 rounded px-2 h-5 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                             type="text"
                             placeholder="Remarks"
                             value={(videoDetails[item]?.remarks) || ""}
@@ -679,6 +692,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                     <div key={item} className="flex items-center gap-3">
                       <label className="flex items-center gap-2 min-w-[140px]">
                         <input
+                          className="h-4 w-4 accent-indigo-700"
                           type="checkbox"
                           checked={selectedLighting.includes(item)}
                           onChange={() => toggleLighting(item)}
@@ -688,14 +702,14 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                       {selectedLighting.includes(item) && (
                         <>
                           <input
-                            className="border border-gray-400 rounded px-2 h-5 w-13 text-center text-sm"
+                            className="border border-gray-400 rounded px-2 h-5 w-13 text-center text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                             type="number"
                             placeholder="0"
                             value={(lightingDetails[item]?.qty) || ""}
                             onChange={(e) => updateLightingDetail(item, "qty", e.target.value)}
                           />
                           <input
-                            className="border border-gray-400 rounded px-2 h-5 flex-1 text-sm"
+                            className="border border-gray-400 rounded px-2 h-5 flex-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500"
                             type="text"
                             placeholder="Remarks"
                             value={(lightingDetails[item]?.remarks) || ""}

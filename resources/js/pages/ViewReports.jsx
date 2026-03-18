@@ -273,16 +273,18 @@ const ViewReports = () => {
     const activeTo = Math.min(reportPage * REPORT_PAGE_SIZE, activeTotal);
 
     const exportCsv = (headers, rows, filename) => {
+        const delimiter = ',';
+        const newline = '\r\n';
+        const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
         const lines = [];
-        lines.push(headers.join(','));
+        lines.push(`sep=${delimiter}`);
+        lines.push(headers.map(escapeCsv).join(delimiter));
         rows.forEach(r => {
-            lines.push(headers.map(h => {
-                const v = r[h] ?? '';
-                const s = String(v).replace(/"/g, '""');
-                return `"${s}"`;
-            }).join(','));
+            lines.push(headers.map(h => escapeCsv(r[h])).join(delimiter));
         });
-        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+
+        const blob = new Blob([`\ufeff${lines.join(newline)}`], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = filename;
@@ -290,6 +292,23 @@ const ViewReports = () => {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
+    };
+    const exportTimeRange12h = (start, end) => {
+        const s = formatTime12h(start);
+        const e = formatTime12h(end);
+        if (!s && !e) return '';
+        if (!e) return s;
+        if (!s) return e;
+        return `${s} - ${e}`;
+    };
+    const exportDateMMDDYY = (dateStr) => {
+        const d = parseDate(dateStr);
+        if (!d) return '';
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const mm = pad2(d.getMonth() + 1);
+        const dd = pad2(d.getDate());
+        const yy = pad2(d.getFullYear() % 100);
+        return `${mm}/${dd}/${yy}`;
     };
     const exportCurrentReportCsv = () => {
         if (reportTab === 'booking_summary') {
@@ -300,8 +319,8 @@ const ViewReports = () => {
                 'Venue Name': getPrimaryVenueName(r),
                 'Requester Name': r.requested_by || r.user?.name || r.user?.email || '',
                 'Department': r.requesting_party || '',
-                'Event Date': r.date_of_use || '',
-                'Time': `${r.inclusive_time_start || ''}-${r.inclusive_time_end || ''}`,
+                'Event Date': exportDateMMDDYY(r.date_of_use),
+                'Time': exportTimeRange12h(r.inclusive_time_start, r.inclusive_time_end),
                 'Status': r.status || '',
                 'Approval Info': r.or_number ? `OR ${r.or_number}` : ''
             }));
@@ -322,8 +341,8 @@ const ViewReports = () => {
                 'Event': r.activity_event || '',
                 'Venue': getPrimaryVenueName(r),
                 'Requester': r.requesting_party || '',
-                'Date': r.date_of_use || '',
-                'Time': `${r.inclusive_time_start || ''}-${r.inclusive_time_end || ''}`,
+                'Date': exportDateMMDDYY(r.date_of_use),
+                'Time': exportTimeRange12h(r.inclusive_time_start, r.inclusive_time_end),
                 'Status': r.status || ''
             }));
             exportCsv(headers, rows, 'Booking_Status.csv');
@@ -342,8 +361,8 @@ const ViewReports = () => {
             const headers = ['Venue','Date','Time','Status','Event'];
             const rows = reportList.map(r => ({
                 'Venue': getPrimaryVenueName(r),
-                'Date': r.date_of_use || '',
-                'Time': `${r.inclusive_time_start || ''}-${r.inclusive_time_end || ''}`,
+                'Date': exportDateMMDDYY(r.date_of_use),
+                'Time': exportTimeRange12h(r.inclusive_time_start, r.inclusive_time_end),
                 'Status': r.status || '',
                 'Event': r.activity_event || ''
             }));
@@ -351,12 +370,12 @@ const ViewReports = () => {
         } else if (reportTab === 'conflicts') {
             const headers = ['Date','Venue','Booking A','Time A','Booking B','Time B'];
             const rows = conflicts.map(c => ({
-                'Date': c.date,
+                'Date': exportDateMMDDYY(c.date),
                 'Venue': c.venue,
                 'Booking A': c.aId,
-                'Time A': `${c.aStart}-${c.aEnd}`,
+                'Time A': exportTimeRange12h(c.aStart, c.aEnd),
                 'Booking B': c.bId,
-                'Time B': `${c.bStart}-${c.bEnd}`
+                'Time B': exportTimeRange12h(c.bStart, c.bEnd)
             }));
             exportCsv(headers, rows, 'Conflicts.csv');
         } else if (reportTab === 'cancelled') {
@@ -366,8 +385,8 @@ const ViewReports = () => {
                 'Event': r.activity_event || '',
                 'Venue': getPrimaryVenueName(r),
                 'Requester': r.requesting_party || '',
-                'Date': r.date_of_use || '',
-                'Time': `${r.inclusive_time_start || ''}-${r.inclusive_time_end || ''}`,
+                'Date': exportDateMMDDYY(r.date_of_use),
+                'Time': exportTimeRange12h(r.inclusive_time_start, r.inclusive_time_end),
                 'Cancelled On': r.cancelled_at || '',
                 'Reason': r.cancellation_reason || r.rejection_reason || ''
             }));

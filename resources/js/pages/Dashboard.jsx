@@ -556,7 +556,7 @@ h1{font-size:20px;margin:0 0 8px}
                 </div>
             </div>
             <div>
-                <div className="bg-white rounded-lg shadow p-8 h-120 w-304 mt-1">
+                <div className="bg-white rounded-lg shadow p-4 sm:p-8 w-full mt-1 min-h-[420px]">
                     
                         <div className="flex items-center justify-between gap-1 flex-wrap">
                             <div className="flex items-center gap-2">

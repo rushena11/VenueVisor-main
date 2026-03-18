@@ -48,7 +48,7 @@ const SignupModal = ({ isOpen, onClose, onSwitchToLogin }) => {
 
     return (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden relative animate-fade-in-up">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden relative animate-fade-in-up max-h-[90vh] flex flex-col">
                 {/* Close Button */}
                 <button 
                     onClick={onClose}
@@ -59,12 +59,12 @@ const SignupModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                     </svg>
                 </button>
 
-                <div className="p-8">
+                <div className="p-4 sm:p-8 overflow-y-auto">
                     <div className="text-center mb-6">
                         <img 
                             src="/assets/LNULogo.png" 
                             alt="LNU Logo" 
-                            className="h-24 mx-auto mb-4"
+                            className="h-16 sm:h-24 mx-auto mb-4"
                         />
                         <h2 className="text-2xl font-bold text-blue-900">Create VenueVisor Account</h2>
                         <p className="text-gray-600 mt-1">Create an account to request venues</p>
@@ -188,7 +188,7 @@ const SignupModal = ({ isOpen, onClose, onSwitchToLogin }) => {
                     </div>
                 </div>
                 
-                <div className="bg-gray-50 px-8 py-4 text-center text-xs text-gray-500 border-t border-gray-100">
+                <div className="bg-gray-50 px-4 sm:px-8 py-4 text-center text-xs text-gray-500 border-t border-gray-100">
                     Protected by VenueVisor Security
                 </div>
             </div>

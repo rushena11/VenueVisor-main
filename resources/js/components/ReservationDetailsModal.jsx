@@ -212,8 +212,8 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b">
+            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
                     <div className="flex items-center gap-3">
                         <img src={Logo} alt="Logo" className="w-8 h-8 rounded" />
                         <div>
@@ -229,12 +229,12 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                         }`}>
                             {reservation.status === 'rejected' ? 'Denied' : reservation.status.charAt(0).toUpperCase()+reservation.status.slice(1)}
                         </span>
-                        <button onClick={onClose} className="inline-flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 text-gray-600">
-                            <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/></svg>
+                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close" title="Close">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>
                     </div>
                 </div>
-                <div className="px-6 py-5">
+                <div className="px-4 sm:px-6 py-5 overflow-y-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-4">
                             <div className="text-sm font-semibold text-gray-700">Request Info</div>
@@ -386,10 +386,10 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                         </div>
                     </div>
                 </div>
-                <div className="px-6 py-4 border-t bg-gray-50">
-                    <div className="flex items-center justify-between gap-4">
+                <div className="px-4 sm:px-6 py-4 border-t bg-gray-50">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="text-xs text-gray-500">Requested on {formatDate(reservation.created_at || reservation.date_of_use)}</div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                             {isAdmin && reservation.status === 'pending' ? (
                                 <>
                                     <button onClick={() => handleAction('rejected')} className="px-4 py-2 rounded-lg border border-red-300 text-red-700 bg-white hover:bg-red-50">Deny</button>

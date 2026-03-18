@@ -266,6 +266,7 @@ HTML;
             <td width="33%" valign="top" align="left">
               <div style="margin-bottom:8px;">Requested by:</div>
               <div style="border-bottom:1px solid #000; height:18px;">&nbsp;</div>
+              <div style="text-align:center;">{$requestedBy}&nbsp;</div>
               <div class="small" style="text-align:center;">Requesting Party (Signature Over Printed Name)</div>
             </td>
             <td width="34%" valign="top" align="center">

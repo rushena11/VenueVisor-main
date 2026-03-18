@@ -863,7 +863,7 @@ const PublicDashboard = () => {
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-gray-900">Facility Dashboard</h1>
                     <p className="text-orange-400 text-sm font-medium mt-1">
-                        Manage bookings for {selectedYear} • <span className="text-orange-400">12 Venues Active</span>
+                        Manage bookings for {selectedYear} • <span className="text-orange-400">16 Venues Active</span>
                     </p>
                 </div>
 

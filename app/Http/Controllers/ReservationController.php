@@ -99,6 +99,20 @@ class ReservationController extends Controller
             return response()->json(['message' => 'Official Receipt details are locked for approved reservations'], 422);
         }
 
+        $rules = [];
+        if ($request->has('or_number')) {
+            $rules['or_number'] = 'nullable|regex:/^[0-9]+$/';
+        }
+        if ($request->has('or_amount')) {
+            $rules['or_amount'] = 'nullable|regex:/^[0-9]+(\.[0-9]{1,2})?$/';
+        }
+        if ($request->has('or_date')) {
+            $rules['or_date'] = 'nullable|date';
+        }
+        if (!empty($rules)) {
+            $request->validate($rules);
+        }
+
         $reservation->update($request->except(['user_id', 'status'])); // Status updated via separate endpoint
 
         return $reservation;

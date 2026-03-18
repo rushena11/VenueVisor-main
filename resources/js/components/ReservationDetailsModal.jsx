@@ -59,6 +59,23 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
     const [deleteError, setDeleteError] = useState('');
     const [confirmOpen, setConfirmOpen] = useState(false);
 
+    const handleOrNumberChange = (e) => {
+        const raw = e.target.value || '';
+        const cleaned = raw.replace(/\D+/g, '');
+        setOrNumber(cleaned);
+    };
+    const handleOrAmountChange = (e) => {
+        const raw = (e.target.value || '').replace(/[^0-9.]/g, '');
+        const firstDot = raw.indexOf('.');
+        if (firstDot === -1) {
+            setOrAmount(raw);
+            return;
+        }
+        const intPart = raw.slice(0, firstDot).replace(/\./g, '');
+        const decPart = raw.slice(firstDot + 1).replace(/\./g, '').slice(0, 2);
+        setOrAmount(`${intPart || '0'}.${decPart}`);
+    };
+
     useEffect(() => {
         setOrNumber(reservation.or_number || '');
         setOrAmount(reservation.or_amount || '');
@@ -74,6 +91,13 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
         setSaveError('');
         setSaveOk('');
         try {
+            const isValidOrNumber = !orNumber || /^[0-9]+$/.test(orNumber);
+            const isValidOrAmount = !orAmount || /^[0-9]+(\.[0-9]{1,2})?$/.test(orAmount);
+            if (!isValidOrNumber || !isValidOrAmount) {
+                setSaveError('OR Number and Amount must contain numbers only');
+                setSaving(false);
+                return;
+            }
             const token = localStorage.getItem('token');
             const res = await axios.put(`/api/reservations/${reservation.id}`, {
                 or_number: orNumber,
@@ -84,7 +108,11 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
             });
             const updated = res?.data ? res.data : { ...reservation, or_number: orNumber, or_amount: orAmount, or_date: orDate };
             if (onReservationUpdate) onReservationUpdate(updated);
-            setSaveOk('Official Receipt saved');
+            const amountText = formatCurrencyPHP(orAmount);
+            const dateText = orDate ? formatDateShortPH(orDate) : '';
+            const msg = `Official Receipt saved: OR ${orNumber}${amountText ? ` • ${amountText}` : ''}${dateText ? ` • ${dateText}` : ''}`;
+            setSaveOk(msg);
+            if (onNotify) onNotify(msg, 'success');
         } catch (e) {
             console.error(e);
             setSaveError('Failed to save Official Receipt');
@@ -293,18 +321,22 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                                             <div>
                                                 <label className="block text-xs text-blue-800 mb-1 font-semibold">OR Number</label>
                                                 <input
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
                                                     className="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                     value={orNumber}
-                                                    onChange={(e) => setOrNumber(e.target.value)}
+                                                    onChange={handleOrNumberChange}
                                                     placeholder="e.g. 123456"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="block text-xs text-blue-800 mb-1 font-semibold">Amount</label>
                                                 <input
+                                                    inputMode="decimal"
+                                                    pattern="^[0-9]+(\\.[0-9]{1,2})?$"
                                                     className="w-full border border-blue-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                                     value={orAmount}
-                                                    onChange={(e) => setOrAmount(e.target.value)}
+                                                    onChange={handleOrAmountChange}
                                                     placeholder="e.g. 500.00"
                                                 />
                                             </div>
@@ -319,7 +351,13 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                                             </div>
                                         </div>
                                         {saveError && <div className="text-sm text-red-700">{saveError}</div>}
-                                        {saveOk && <div className="text-sm text-green-700">{saveOk}</div>}
+                                        {saveOk && (
+                                            <div className="text-sm text-gray-800 bg-white border border-green-200 rounded-lg p-3 space-y-1">
+                                                <div>OR Number: {orNumber || ''}</div>
+                                                <div>Amount: {orAmount || ''}</div>
+                                                <div>Date: {orDate ? formatDateShortPH(orDate) : ''}</div>
+                                            </div>
+                                        )}
                                         <div className="flex justify-end">
                                             <button
                                                 onClick={saveOR}

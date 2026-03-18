@@ -73,13 +73,13 @@ const Layout = () => {
                                 />
                                 <div className="flex flex-col">
                                     <span className="text-lg sm:text-xl font-bold leading-none">VenueVisor</span>
-                                    <span className="hidden sm:inline text-xs text-blue-200 tracking-wider">LNU BLUEBOOK</span>
+                                    <span className="hidden sm:inline text-xs font-bold text-yellow-400 tracking-wider">LNU BLUEBOOK</span>
                                 </div>
                             </div>
                             <div className="hidden md:block">
                                 <div className="ml-10 flex items-baseline space-x-4">
                                     <Link to="/dashboard" className={`hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${location.pathname.startsWith('/dashboard') ? 'border-b-2 border-yellow-400' : ''}`}>Dashboard</Link>
-                                    <Link to="/reservation/new" className={`hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${location.pathname.startsWith('/reservation') ? 'border-b-2 border-yellow-400' : ''}`}>New Reservation</Link>
+                                    <Link to="/reservation/new" className={`hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${location.pathname.startsWith('/reservation/new') ? 'border-b-2 border-yellow-400' : ''}`}>New Reservation</Link>
                                     <Link to="/venues" className={`hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${location.pathname.startsWith('/venues') ? 'border-b-2 border-yellow-400' : ''}`}>View Venues</Link>
                                     <Link to="/bug-reports" className={`hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${location.pathname.startsWith('/bug-reports') ? 'border-b-2 border-yellow-400' : ''}`}>Bug Reports</Link>
                                     <Link to="/reports" className={`hover:bg-blue-700 px-3 py-2 rounded-md text-sm font-medium ${location.pathname.startsWith('/reports') ? 'border-b-2 border-yellow-400' : ''}`}>View Reports</Link>
@@ -132,7 +132,7 @@ const Layout = () => {
                                 <Link
                                     to="/reservation/new"
                                     onClick={() => setIsMobileMenuOpen(false)}
-                                    className={`block px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 ${location.pathname.startsWith('/reservation') ? 'bg-blue-800' : ''}`}
+                                    className={`block px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 ${location.pathname.startsWith('/reservation/new') ? 'bg-blue-800' : ''}`}
                                 >
                                     New Reservation
                                 </Link>

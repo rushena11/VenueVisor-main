@@ -17,6 +17,9 @@ const DEFAULT_VENUE_NAMES = [
   'Library Grounds',
   'HRDC Quad Stage',
   'ORC Quadrangle/Stage',
+  'Classroom',
+  'Laboratory Room',
+  'Others',
 ];
 
 const normalizeVenueName = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -30,7 +33,6 @@ const Venues = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [formName, setFormName] = useState('');
-  const [formLocation, setFormLocation] = useState('');
   const [formStatus, setFormStatus] = useState('available');
   const user = JSON.parse(localStorage.getItem('user') || 'null');
   const isAdmin = user && (user.role === 'admin' || user.role === 'staff');
@@ -106,19 +108,13 @@ const Venues = () => {
   const openAdd = () => {
     setEditing(null);
     setFormName('');
-    setFormLocation('');
     setFormStatus('available');
     setIsModalOpen(true);
   };
 
   const openEdit = (v) => {
-    if (v?.isVirtual) {
-      setEditing(null);
-    } else {
-      setEditing(v);
-    }
+    setEditing(v);
     setFormName(v.name || '');
-    setFormLocation(v.location || '');
     setFormStatus(v.status || 'available');
     setIsModalOpen(true);
   };
@@ -131,13 +127,17 @@ const Venues = () => {
     const token = localStorage.getItem('token');
     const headers = token ? { Authorization: `Bearer ${token}`, Accept: 'application/json', 'Content-Type': 'application/json' } : undefined;
     const base = { name: formName.trim(), status: formStatus };
-    const payload = editing ? base : { ...base, location: formLocation.trim() };
+    const isVirtual = editing?.isVirtual === true;
+    const id = editing?.id;
+    const isNumericId = typeof id === 'number' || (typeof id === 'string' && /^\d+$/.test(id));
+    const isCreate = !editing || isVirtual || !isNumericId;
+    const payload = base;
     if (!payload.name) {
       alert('Name is required');
       return;
     }
     try {
-      if (editing && editing.id) {
+      if (!isCreate) {
         await axios.put(`/api/venues/${editing.id}`, payload, { headers });
         setVenues(vs => vs.map(v => v.id === editing.id ? { ...v, ...payload } : v));
       } else {
@@ -252,7 +252,7 @@ const Venues = () => {
         <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
             <div className="px-5 py-3 border-b flex items-center justify-between">
-              <div className="text-lg font-semibold text-gray-900">{editing ? 'Edit Venue' : 'Add Venue'}</div>
+              <div className="text-lg font-semibold text-gray-900">Edit Venue</div>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none"><path d="M6 18L18 6M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
@@ -262,12 +262,7 @@ const Venues = () => {
                 <div className="text-xs text-gray-600 mb-1">Name</div>
                 <input value={formName} onChange={(e) => setFormName(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
               </div>
-              {!editing && (
-                <div>
-                  <div className="text-xs text-gray-600 mb-1">Location (optional)</div>
-                  <input value={formLocation} onChange={(e) => setFormLocation(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 text-sm" />
-                </div>
-              )}
+              {/* Location removed per request */}
               <div>
                 <div className="text-xs text-gray-600 mb-1">Status</div>
                 <select value={formStatus} onChange={(e) => setFormStatus(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
@@ -278,7 +273,7 @@ const Venues = () => {
             </div>
             <div className="px-5 py-3 border-t flex items-center justify-end gap-2">
               <button onClick={closeModal} className="px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm">Cancel</button>
-              <button onClick={saveVenue} className="px-3 py-1.5 rounded bg-blue-900 text-white hover:bg-blue-800 text-sm">{editing ? 'Save Changes' : 'Add Venue'}</button>
+              <button onClick={saveVenue} className="px-3 py-1.5 rounded bg-blue-900 text-white hover:bg-blue-800 text-sm">Save Changes</button>
             </div>
           </div>
         </div>

@@ -908,7 +908,13 @@ const PublicDashboard = () => {
                                     const isToday = date && new Date().toDateString() === date.toDateString();
                                     const { approved, pending, rejected } = getVenueStatusCountsForDate(date);
                                     const approvedPct = total > 0 ? (approved / total) * 100 : 0;
-                                    const availableDisplay = total - approved;
+                                    let adminUnavailableCount = 0;
+                                    venueKeys.forEach(k => {
+                                        const label = venueNames[k];
+                                        const s = getVenueStatusForLabel(label);
+                                        if (s && s !== 'available') adminUnavailableCount++;
+                                    });
+                                    const availableDisplay = Math.max(total - approved - adminUnavailableCount, 0);
                                     let pendingRequestsCount = 0;
                                     if (date) {
                                         const dateStr = dateKey(date);

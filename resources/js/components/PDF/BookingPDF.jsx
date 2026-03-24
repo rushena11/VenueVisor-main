@@ -92,10 +92,10 @@ const BookingPDF = ({
 
   return (
     <div className="w-[216mm] min-h-[330mm] text-black leading-tight">
-      <div className="flex items-start">
-        <div className="w-[16%] flex justify-end pt-[1mm] pr-[1mm]">
-          <img src="/assets/LNULogo.png" alt="LNU Logo" className="w-[23.3mm] h-[23mm]" />
-        </div>
+      <div className="flex items-start justify-between w-full">
+        <div className="w-[16%] flex justify-center pt-[1mm]">
+        <img src="/assets/LNULogo.png" alt="LNU Logo" className="w-[23.3mm] h-[23mm]" />
+      </div>
 
         <div className="w-[56%] pt-[0.5mm]">
           <div className="text-center">
@@ -120,7 +120,7 @@ const BookingPDF = ({
           </div>
         </div>
 
-        <div className="w-[52.1mm] h-[20.9mm] border border-red-500 p-[6px] [font-family:Calibri] text-[11pt]">
+        <div className="w-[20%] border border-red-500 p-[6px] [font-family:Calibri] text-[11pt] ml-20">
           <div className="grid grid-cols-[42%_1fr] gap-x-2 gap-y-1">
             <div>OR Number:</div>
             <div className="border-b border-black">

@@ -379,6 +379,11 @@ const PublicDashboard = () => {
     };
 
     const nonAvailableVenues = venues.filter(v => v.status && v.status !== 'available');
+    const normalizeVenueStatus = (v) => (v || 'available').toString().trim().toLowerCase();
+    const activeVenuesCount = venueKeys.reduce((count, key) => {
+        const status = getVenueStatusForLabel(venueNames[key]);
+        return normalizeVenueStatus(status) === 'available' ? count + 1 : count;
+    }, 0);
 
     const months = [
         'January', 'February', 'March', 'April', 'May', 'June', 
@@ -863,7 +868,7 @@ const PublicDashboard = () => {
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-gray-900">Facility Dashboard</h1>
                     <p className="text-orange-400 text-sm font-medium mt-1">
-                        Manage bookings for {selectedYear} • <span className="text-orange-400">16 Venues Active</span>
+                        Manage bookings for {selectedYear} • <span className="text-orange-400">{activeVenuesCount} Venues Active</span>
                     </p>
                 </div>
 

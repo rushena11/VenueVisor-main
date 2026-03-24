@@ -257,9 +257,11 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                         }`}>
                             {reservation.status === 'rejected' ? 'Denied' : reservation.status.charAt(0).toUpperCase()+reservation.status.slice(1)}
                         </span>
-                        <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close" title="Close">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>
+                        {isAdmin && (
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close" title="Close">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        )}
                     </div>
                 </div>
                 <div className="px-4 sm:px-6 py-5 overflow-y-auto">
@@ -286,6 +288,12 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-500">Inclusive Time</span>
                                     <span className="text-gray-900">{formatTime(reservation.inclusive_time_start)} - {formatTime(reservation.inclusive_time_end)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-500">Pax</span>
+                                    <span className="text-gray-900">
+                                        {(reservation.pax_count ?? reservation.paxCount ?? reservation.pax ?? '') !== '' ? (reservation.pax_count ?? reservation.paxCount ?? reservation.pax) : '-'}
+                                    </span>
                                 </div>
                                 {reservation.rejection_reason && reservation.status === 'rejected' && (
                                     <div className="pt-2">

@@ -57,15 +57,15 @@ class ReservationPdfService
                 <tr>
                     <td width=\"50%\" align=\"left\">(<span style=\"display:inline-block; width:4mm; text-align:center;\">{$tick}</span>) {$it}</td>
                     <td width=\"18%\" align=\"center\" style=\"border-bottom:1px solid #000;\">{$qty}</td>
-                    <td width=\"32%\" style=\"border-bottom:1px solid #000;\">{$remarks}</td>
+                    <td width=\"32%\" style=\"border-bottom:1px solid #000; border-left:1px solid transparent; margin-left:1mm;\">{$remarks}</td>
                 </tr>";
             }
             return <<<HTML
-            <table border="0" cellpadding="2" cellspacing="0" width="100%">
+            <table border="0" cellpadding="1" cellspacing="0" width="100%">
                 <tr>
                     <th align="left" width="50%"></th>
-                    <th align="center" width="18%">Qty</th>
-                    <th align="left" width="32%">Remarks</th>
+                    <th align="center" width="18%" style="border-bottom:1px solid #000; font-size:8pt;">Qty</th>
+                    <th align="center" width="32%" style="border-bottom:1px solid #000; font-size:8pt;">Remarks</th>
                 </tr>
                 {$rows}
             </table>
@@ -112,42 +112,39 @@ HTML;
         
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
-            <td width="16%" align="right" valign="top" style="padding-top:1mm; padding-right:1mm;">
+            <td width="15%" align="left" valign="top" style="padding-top:1mm;">
               <img src="{$logoPath}" style="width:23.3mm; height:23mm;" />
             </td>
             <td width="60%" align="center" valign="top" style="padding-top:0.5mm;">
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td align="center"><font face="{$bahnschriftFont}" size="12"><span style="font-weight:600;">Republic of the Philippines</span></font></td>
-                </tr>
-                <tr>
-                  <td align="center" style="height:0.8mm; line-height:0.8mm; font-size:1px;">&nbsp;</td>
+                  <td align="center"><font face="{$bahnschriftFont}" size="11">Republic of the Philippines</font></td>
                 </tr>
                 <tr>
                   <td align="center"><font face="{$bahnschriftFont}" size="12"><b>LEYTE NORMAL UNIVERSITY</b></font></td>
                 </tr>
                 <tr>
-                  <td align="center"><font face="{$calibriFont}" size="12">Tacloban City</font></td>
+                  <td align="center"><font face="{$calibriFont}" size="11">Tacloban City</font></td>
                 </tr>
                 <tr>
-                  <td align="center" style="height:0.8mm; line-height:0.8mm; font-size:1px;">&nbsp;</td>
+                  <td align="center" style="height:1mm; line-height:1mm; font-size:1px;">&nbsp;</td>
                 </tr>
                 <tr>
                   <td align="center"><font face="{$arialBoldFont}" size="11"><b>PHYSICAL PLANT AND FACILITIES</b></font></td>
                 </tr>
                 <tr>
-                  <td align="center"><font face="{$arialBoldFont}" size="11">VENUE AND AUDIO-VISUAL FACILITIES RESERVATION FORM</font></td>
+                  <td align="center" style="white-space:nowrap;"><font face="{$arialBoldFont}" size="11"><b>VENUE AND AUDIO-VISUAL FACILITIES RESERVATION FORM</b></font></td>
                 </tr>
               </table>
             </td>
-            <td width="50%" valign="top" style="padding-top:1mm;">
+            <td width="25%" valign="top" style="padding-top:0.1mm;">
               <table border="0.5" cellpadding="1" cellspacing="0" style="width:5.21cm; height:2.09cm;">
                 <tr>
                   <td valign="top" style="height:2.09cm;">
-                    <table border="0" cellpadding="1" cellspacing="0" width="100%" style="height:100%; margin-left:100mm;">
+                    <table border="0" cellpadding="1" cellspacing="0" width="100%">
                       <tr>
-                        <td width="46%"><font face="{$calibriFont}" size="11">OR Number:</font></td>
-                        <td style="border-bottom:1px solid #000;"><font face="{$calibriFont}" size="11">{$orNumber}&nbsp;</font></td>
+                        <td width="48%"><font face="{$calibriFont}" size="11">OR Number:</font></td>
+                        <td width="47%" style="border-bottom:1px solid #000;"><font face="{$calibriFont}" size="11">{$orNumber}&nbsp;</font></td>
                       </tr>
                       <tr>
                         <td><font face="{$calibriFont}" size="11">Amount:</font></td>
@@ -168,10 +165,10 @@ HTML;
 
         <table width="100%" cellpadding="2" cellspacing="0">
           <tr>
-            <td width="58%" valign="top">
+            <td width="60%" valign="top">
               <table width="100%" cellpadding="1" cellspacing="0">
                 <tr>
-                  <td width="32%"><font face="{$arialFont}" size="11">Activity/Event:</font></td>
+                  <td width="28%"><font face="{$arialFont}" size="11">Activity/Event:</font></td>
                   <td style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="11">{$activity}</font></td>
                 </tr>
                 <tr>
@@ -180,10 +177,10 @@ HTML;
                 </tr>
               </table>
             </td>
-            <td width="42%" valign="top">
+            <td width="40%" valign="top">
               <table width="100%" cellpadding="1" cellspacing="0">
                 <tr>
-                  <td width="40%"><font face="{$arialFont}" size="11">Date of Use:</font></td>
+                  <td width="38%"><font face="{$arialFont}" size="11">Date of Use:</font></td>
                   <td style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="11">{$dateOfUse}</font></td>
                 </tr>
                 <tr>
@@ -195,7 +192,7 @@ HTML;
           </tr>
         </table>
 
-        <br/>
+        <div style="height:1mm; line-height:0.5mm; font-size:1px;">&nbsp;</div>
         <div style="text-align:center; font-weight:bold; font-size:10pt;">VENUE REQUESTED</div>
         <table width="100%" cellpadding="1" cellspacing="0" style="font-size:9pt;">
           <tr>
@@ -241,55 +238,71 @@ HTML;
           </tr>
         </table>
 
-        <br/>
+        <div style="height:0.5mm; line-height:0.5mm; font-size:1px;">&nbsp;</div>
         <div style="text-align:center; font-weight:bold; font-size:10pt;">AUDIO-VISUAL FACILITIES</div>
         <table width="100%" cellpadding="2" cellspacing="0" style="font-size:9pt;">
           <tr>
             <td width="33%" valign="top" align="center">
-              <div style="font-weight:bold; text-decoration:underline; margin-bottom:2px;">AUDIO SYSTEM</div>
+              <div style="font-weight:bold; text-decoration:underline; margin-bottom:1px;">AUDIO SYSTEM</div>
               {$audioHtml}
             </td>
             <td width="33%" valign="top" align="center">
-              <div style="font-weight:bold; text-decoration:underline; margin-bottom:2px;">VIDEO SYSTEM</div>
+              <div style="font-weight:bold; text-decoration:underline; margin-bottom:1px;">VIDEO SYSTEM</div>
               {$videoHtml}
             </td>
             <td width="34%" valign="top" align="center">
-              <div style="font-weight:bold; text-decoration:underline; margin-bottom:2px;">LIGHTING SYSTEM / FANS</div>
+              <div style="font-weight:bold; text-decoration:underline; margin-bottom:1px;">LIGHTING SYSTEM / FANS</div>
               {$lightingHtml}
             </td>
           </tr>
         </table>
 
-        <br/>
-        <table width="100%" cellpadding="2" cellspacing="0" style="font-size:9pt;">
+        <div style="height:1mm; line-height:1mm; font-size:1px;">&nbsp;</div>
+        <div style="text-align:center; font-size:10pt;">Certification of Availability of Equipment:</div>
+        <div style="height:4mm;"></div>
+        <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
-            <td width="33%" valign="top" align="left">
-              <div style="margin-bottom:8px;">Requested by:</div>
-              <div style="border-bottom:1px solid #000; height:18px;">&nbsp;</div>
-              <div style="text-align:center;">{$requestedBy}&nbsp;</div>
-              <div class="small" style="text-align:center;">Requesting Party (Signature Over Printed Name)</div>
+            <td width="33%"></td>
+            <td width="28%" style="border-bottom:1px solid #000;"></td>
+            <td width="33%"></td>
+          </tr>
+          <tr>
+            <td></td>
+            <td align="center" style="font-size:9pt;">HRDC Audio-Visual Coordinator</td>
+            <td></td>
+          </tr>
+        </table>
+
+        <div style="height:4mm;"></div>
+
+        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:9pt;">
+          <tr>
+            <td width="32%" valign="top">
+              <div style="margin-bottom:8mm;">Requested by:</div>
+              <div style="border-bottom:1px solid #000; height:1px;"></div>
+              <div style="text-align:center; font-weight:bold; margin-top:1px;">{$requestedBy}</div>
+              <div style="text-align:center; font-size:8pt;">Requesting Party (Signature Over Printed Name)</div>
             </td>
-            <td width="34%" valign="top" align="center">
-              <div style="margin-bottom:4px;">Certification of Availability of Equipment:</div>
-              <div style="border-bottom:1px solid #000; height:18px; width:80%; margin:0 auto;">&nbsp;</div>
-              <div class="small" style="margin-top:2px;">HRDC Audio-Visual Coordinator</div>
-              <br/>
-              <div style="margin-bottom:4px;">Recommending Approval:</div>
-              <div style="border-bottom:1px solid #000; height:18px; width:90%; margin:0 auto;">&nbsp;</div>
-              <div class="small" style="margin-top:2px;">Building Coordinator (Signature Over Printed Name)</div>
+            <td width="4%"></td>
+            <td width="32%" valign="top">
+              <div style="margin-bottom:5mm;">Recommending Approval:</div>
+              <div style="border-bottom:1px solid #000; height:1px;"></div>
+              <div style="text-align:center; margin-top:1px;">&nbsp;</div>
+              <div style="text-align:center; font-size:8pt;">Building Coordinator (Signature Over Printed Name)</div>
             </td>
-            <td width="33%" valign="top" align="center">
-              <table border="1" cellpadding="6" cellspacing="0" width="100%">
-                <tr><td align="left"><b>Approved by:</b></td></tr>
-                <tr><td><div style="border-bottom:1px solid #000; height:18px;">&nbsp;</div></td></tr>
-                <tr><td align="left" class="small">Director, Physical Plant & Facilities</td></tr>
-                <tr><td align="left"><b>DATE RECEIVED</b> <span style="display:inline-block; border-bottom:1px solid #000; min-width:95px;">&nbsp;</span></td></tr>
+            <td width="4%"></td>
+            <td width="28%" valign="top">
+              <table border="1" cellpadding="4" cellspacing="0" width="100%">
+                <tr><td align="left">Approved by:</td></tr>
+                <tr><td height="12mm"></td></tr>
+                <tr><td style="border-top:1px solid #000; font-size:8.5pt;" align="center">Director, Physical Plant & Facilities</td></tr>
+                <tr><td align="left" style="font-size:9pt; font-weight:bold; border-top:1px solid #000;">DATE RECEIVED ________________</td></tr>
               </table>
             </td>
           </tr>
         </table>
 
-        <br/>
+        <div style="height:1mm; line-height:1mm; font-size:1px;">&nbsp;</div>
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td align="left"><b>F-PPF-001 (09-02-19)</b></td>
@@ -297,23 +310,28 @@ HTML;
         </table>
 HTML;
 
-        // 5. Generate final HTML (Duplicate for 2 copies on one page if needed)
-        $html = $htmlOneCopy;
+        // 5. Generate final HTML (Duplicate for 2 copies on one page)
+        $separator = '<div style="border-top: 1px dashed #000; margin: 4mm 0; height: 1px; width: 100%; text-align: center; font-size: 8pt; color: #666;">(CUT HERE)</div>';
+        $html = $htmlOneCopy . $separator . $htmlOneCopy;
 
         // 6. TCPDF Generation
         if (!class_exists(TCPDF::class)) {
             throw new \Exception('TCPDF is not installed. Run: composer require tecnickcom/tcpdf');
         }
 
+        // Long Bond size: 8.5in x 13in (215.9mm x 330.2mm)
         $pdf = new TCPDF('P', 'mm', [215.9, 330.2], true, 'UTF-8', false);
         $pdf->setPrintHeader(false);
         $pdf->setPrintFooter(false);
         $pdf->SetCreator('VenueVisor');
         $pdf->SetAuthor('VenueVisor');
         $pdf->SetTitle('Reservation Form');
-        $pdf->SetMargins(12.7, 4.8, 8.0, true);
-        $pdf->SetAutoPageBreak(true, 1.6);
+        
+        // Adjust margins to fit 2 copies
+        $pdf->SetMargins(10, 5, 10, true);
+        $pdf->SetAutoPageBreak(false); // Disable auto page break to handle 2 copies manually if needed
         $pdf->AddPage();
+        
         $pdf->writeHTML($html, true, false, true, false, '');
 
         return $pdf->Output('ReservationForm.pdf', 'S');

@@ -58,6 +58,8 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
     const [deleting, setDeleting] = useState(false);
     const [deleteError, setDeleteError] = useState('');
     const [confirmOpen, setConfirmOpen] = useState(false);
+    const [confirmDecisionOpen, setConfirmDecisionOpen] = useState(false);
+    const [decisionAction, setDecisionAction] = useState(null);
 
     const handleOrNumberChange = (e) => {
         const raw = e.target.value || '';
@@ -84,7 +86,7 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
         setSaveOk('');
     }, [reservation]);
 
-    const isOrLocked = (reservation.status === 'approved') && !!(reservation.or_number || reservation.or_amount || reservation.or_date);
+    const isOrLocked = reservation.status === 'approved';
 
     const saveOR = async () => {
         setSaving(true);
@@ -257,7 +259,7 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                         }`}>
                             {reservation.status === 'rejected' ? 'Denied' : reservation.status.charAt(0).toUpperCase()+reservation.status.slice(1)}
                         </span>
-                        {isAdmin && (
+                        {isAdmin && reservation.status !== 'approved' && (
                             <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close" title="Close">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
@@ -438,8 +440,8 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                         <div className="flex flex-wrap items-center justify-end gap-2">
                             {isAdmin && reservation.status === 'pending' ? (
                                 <>
-                                    <button onClick={() => handleAction('rejected')} className="px-4 py-2 rounded-lg border border-red-300 text-red-700 bg-white hover:bg-red-50">Deny</button>
-                                    <button onClick={() => handleAction('approved')} className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">Approve</button>
+                                    <button onClick={() => { setDecisionAction('rejected'); setConfirmDecisionOpen(true); }} className="px-4 py-2 rounded-lg border border-red-300 text-red-700 bg-white hover:bg-red-50">Deny</button>
+                                    <button onClick={() => { setDecisionAction('approved'); setConfirmDecisionOpen(true); }} className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">Approve</button>
                                 </>
                             ) : (!isAdmin && reservation.status === 'pending' ? (
                                 <>
@@ -499,6 +501,54 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                                     className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
                                 >
                                     Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {confirmDecisionOpen && (
+                    <div
+                        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 p-4"
+                        onClick={() => setConfirmDecisionOpen(false)}
+                    >
+                        <div
+                            className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm border border-gray-200 overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                onClick={() => setConfirmDecisionOpen(false)}
+                                className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+                                aria-label="Close"
+                                title="Close"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                            <div className="px-6 pt-6 pb-4 text-center">
+                                <div className="mx-auto w-14 h-14 rounded-full border-2 border-gray-200 flex items-center justify-center">
+                                    <svg className="w-7 h-7 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={decisionAction === 'approved' ? 'M20 6 9 17l-5-5' : 'M12 9v4m0 4h.01'} />
+                                    </svg>
+                                </div>
+                                <div className="mt-4 text-base font-semibold text-gray-900">
+                                    {decisionAction === 'approved'
+                                        ? 'Are you sure you want to approved this reservation?'
+                                        : 'Are you sure you want to rejected this reservation?'}
+                                </div>
+                            </div>
+                            <div className="px-6 pb-6 flex flex-col gap-2">
+                                <button
+                                    onClick={() => { if (decisionAction) handleAction(decisionAction); setConfirmDecisionOpen(false); }}
+                                    className="w-full px-4 py-2.5 rounded-lg font-semibold bg-gray-900 text-white hover:bg-gray-800"
+                                >
+                                    OK
+                                </button>
+                                <button
+                                    onClick={() => setConfirmDecisionOpen(false)}
+                                    className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-gray-700 bg-white hover:bg-gray-50"
+                                >
+                                    CANCEL
                                 </button>
                             </div>
                         </div>

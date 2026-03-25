@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import ReservationDetailsModal from '../components/ReservationDetailsModal';
@@ -11,6 +11,7 @@ const Reservations = () => {
     const [user, setUser] = useState(null);
     const [selectedReservation, setSelectedReservation] = useState(null);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [toasts, setToasts] = useState([]);
     const statusParam = searchParams.get('status') || 'all';
     const [statusFilter, setStatusFilter] = useState(statusParam);
     const [searchTerm, setSearchTerm] = useState('');
@@ -70,6 +71,14 @@ const Reservations = () => {
         setSearchParams({ status: statusFilter });
     }, [statusFilter, setSearchParams]);
 
+    const addToast = (message, type = 'info') => {
+        const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        setToasts(prev => [...prev, { id, message: String(message || ''), type }]);
+        window.setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== id));
+        }, 4000);
+    };
+
     const handleStatusUpdate = async (id, status, reason = '', skipConfirm = false) => {
         if (!skipConfirm && !confirm(`Are you sure you want to ${status} this reservation?`)) return;
         try {
@@ -78,9 +87,11 @@ const Reservations = () => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setReservations(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+            const title = reservations.find(r => r.id === id)?.activity_event || `#${id}`;
+            addToast(`Reservation ${title} ${status === 'approved' ? 'APPROVED' : 'DENIED'}`, status === 'approved' ? 'success' : 'error');
         } catch (e) {
             console.error(e);
-            alert('Failed to update status');
+            addToast('Failed to update status', 'error');
         }
     };
 
@@ -99,12 +110,63 @@ const Reservations = () => {
             );
         });
 
+    const counts = useMemo(() => {
+        const list = Array.isArray(reservations) ? reservations : [];
+        return {
+            all: list.length,
+            approved: list.filter(r => r.status === 'approved').length,
+            pending: list.filter(r => r.status === 'pending').length,
+            rejected: list.filter(r => r.status === 'rejected').length
+        };
+    }, [reservations]);
+
     if (loading) {
         return <div className="flex items-center justify-center min-h-[60vh] text-gray-600">Loading…</div>;
     }
 
     return (
         <div>
+            {toasts.length > 0 && (
+                <div className="fixed top-4 right-4 z-[60] w-96 max-w-[calc(100vw-2rem)] space-y-2">
+                    {toasts.map(t => {
+                        const theme =
+                            t.type === 'success' ? 'border-green-500' :
+                            t.type === 'error' ? 'border-red-500' :
+                            'border-blue-500';
+                        const iconColor =
+                            t.type === 'success' ? 'text-green-600' :
+                            t.type === 'error' ? 'text-red-600' :
+                            'text-blue-600';
+                        const iconPath =
+                            t.type === 'success'
+                                ? 'M20 6 9 17l-5-5'
+                                : t.type === 'error'
+                                    ? 'M6 6l12 12M18 6 6 18'
+                                    : 'M12 9v4m0 4h.01';
+                        return (
+                            <div key={t.id} className={`bg-white border border-gray-200 ${theme} border-l-4 rounded-2xl shadow-sm p-3 flex items-start gap-3`}>
+                                <div className={`mt-0.5 ${iconColor}`}>
+                                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                                        <path d={iconPath} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1 text-sm font-semibold text-gray-900">{t.message}</div>
+                                <button
+                                    type="button"
+                                    onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}
+                                    className="text-gray-400 hover:text-gray-600"
+                                    aria-label="Close notification"
+                                    title="Close"
+                                >
+                                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                                        <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                    </svg>
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
             <div className="mb-3">
                 <button
                     onClick={() => navigate('/dashboard')}
@@ -118,34 +180,30 @@ const Reservations = () => {
             </div>
             <h2 className="text-2xl font-bold mb-4 text-gray-800">Reservations</h2>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-                {statusFilter === 'all' && (
-                    <div className="inline-flex rounded-lg overflow-hidden border bg-white shadow-sm">
-                        <button
-                            className={`px-3 py-1 text-sm ${statusFilter === 'all' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-                            onClick={() => setStatusFilter('all')}
-                        >
-                            All
-                        </button>
-                        <button
-                            className={`px-3 py-1 text-sm border-l ${statusFilter === 'approved' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-                            onClick={() => setStatusFilter('approved')}
-                        >
-                            Approved
-                        </button>
-                        <button
-                            className={`px-3 py-1 text-sm border-l ${statusFilter === 'pending' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-                            onClick={() => setStatusFilter('pending')}
-                        >
-                            Pending
-                        </button>
-                        <button
-                            className={`px-3 py-1 text-sm border-l ${statusFilter === 'rejected' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-                            onClick={() => setStatusFilter('rejected')}
-                        >
-                            Denied
-                        </button>
-                    </div>
-                )}
+                <div className="inline-flex rounded-2xl border border-gray-200 bg-white shadow-sm p-1">
+                    {[
+                        { key: 'all', label: 'All', dot: 'bg-blue-500', count: counts.all },
+                        { key: 'approved', label: 'Approved', dot: 'bg-green-500', count: counts.approved },
+                        { key: 'pending', label: 'Pending', dot: 'bg-yellow-500', count: counts.pending },
+                        { key: 'rejected', label: 'Denied', dot: 'bg-red-500', count: counts.rejected }
+                    ].map(t => {
+                        const active = statusFilter === t.key;
+                        return (
+                            <button
+                                key={t.key}
+                                type="button"
+                                onClick={() => setStatusFilter(t.key)}
+                                className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${active ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-50'}`}
+                            >
+                                <span className={`w-2 h-2 rounded-full ${active ? 'bg-white' : t.dot}`} />
+                                <span>{t.label}</span>
+                                <span className={`ml-1 inline-flex items-center justify-center min-w-[26px] h-6 px-2 rounded-full text-xs font-bold ${active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                                    {t.count}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
                 <input
                     type="text"
                     placeholder="Search event, party, date, ID, or OR..."
@@ -181,38 +239,52 @@ const Reservations = () => {
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         {res.status === 'pending' ? (
                                             isAdmin ? (
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            if (statusFilter === 'all') {
-                                                                setActionModal({ open: true, action: 'approved', reservation: res });
-                                                            } else {
-                                                                handleStatusUpdate(res.id, 'approved');
-                                                            }
-                                                        }}
-                                                        className="px-3 py-1 rounded border border-green-200 text-green-700 bg-green-50 hover:bg-green-100"
-                                                    >
-                                                        Approve
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (statusFilter === 'all') {
-                                                                setActionModal({ open: true, action: 'rejected', reservation: res });
-                                                            } else {
-                                                                handleStatusUpdate(res.id, 'rejected');
-                                                            }
-                                                        }}
-                                                        className="px-3 py-1 rounded border border-red-200 text-red-700 bg-red-50 hover:bg-red-100"
-                                                    >
-                                                        Deny
-                                                    </button>
-                                                    <button
-                                                        onClick={() => { setSelectedReservation(res); setIsViewModalOpen(true); }}
-                                                        className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition-colors"
-                                                    >
-                                                        View
-                                                    </button>
-                                                </div>
+                                                (statusFilter === 'pending' || statusFilter === 'all') ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="px-2 py-1 rounded-full text-xs border border-yellow-200 bg-yellow-50 text-yellow-700">
+                                                            Pending
+                                                        </span>
+                                                        <button
+                                                            onClick={() => { setSelectedReservation(res); setIsViewModalOpen(true); }}
+                                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition-colors"
+                                                        >
+                                                            View
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                if (statusFilter === 'all') {
+                                                                    setActionModal({ open: true, action: 'approved', reservation: res });
+                                                                } else {
+                                                                    handleStatusUpdate(res.id, 'approved');
+                                                                }
+                                                            }}
+                                                            className="px-3 py-1 rounded border border-green-200 text-green-700 bg-green-50 hover:bg-green-100"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (statusFilter === 'all') {
+                                                                    setActionModal({ open: true, action: 'rejected', reservation: res });
+                                                                } else {
+                                                                    handleStatusUpdate(res.id, 'rejected');
+                                                                }
+                                                            }}
+                                                            className="px-3 py-1 rounded border border-red-200 text-red-700 bg-red-50 hover:bg-red-100"
+                                                        >
+                                                            Deny
+                                                        </button>
+                                                        <button
+                                                            onClick={() => { setSelectedReservation(res); setIsViewModalOpen(true); }}
+                                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition-colors"
+                                                        >
+                                                            View
+                                                        </button>
+                                                    </div>
+                                                )
                                             ) : (
                                                 <div className="flex items-center gap-2">
                                                     <span className="px-2 py-1 rounded-full text-xs border border-yellow-200 bg-yellow-50 text-yellow-700">
@@ -327,6 +399,7 @@ const Reservations = () => {
                     setReservations(prev => prev.map(r => r.id === updated.id ? updated : r));
                     setSelectedReservation(updated);
                 }}
+                onNotify={(msg, type) => addToast(msg, type)}
             />
         </div>
     );

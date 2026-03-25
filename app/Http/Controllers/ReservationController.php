@@ -9,6 +9,104 @@ use App\PDF\ReservationPdfService;
 
 class ReservationController extends Controller
 {
+    private function venueBoolKeys(): array
+    {
+        return [
+            'hrdc_hall',
+            'av_studio',
+            'bleacher',
+            'alba_hall',
+            'student_center_mini_theater',
+            'cte_training_hall_2_or_3',
+            'admin_building_2nd_floor',
+            'multi_purpose_hall_3f',
+            'hum_av_theater',
+            'dance_studio_hall_3f',
+            'cme_gym',
+            'library_grounds',
+            'hrdc_quad_stage',
+            'hrdc_quadrangle_stage',
+        ];
+    }
+
+    private function venueStringKeys(): array
+    {
+        return [
+            'classroom_specify',
+            'laboratory_room_specify',
+            'others_venue_specify',
+        ];
+    }
+
+    private function extractRequestedVenues(Request $request, ?Reservation $fallback = null): array
+    {
+        $boolKeys = $this->venueBoolKeys();
+        $stringKeys = $this->venueStringKeys();
+
+        $hasVenueInput = false;
+        foreach (array_merge($boolKeys, $stringKeys) as $k) {
+            if ($request->has($k)) {
+                $hasVenueInput = true;
+                break;
+            }
+        }
+
+        $source = $hasVenueInput ? $request : $fallback;
+
+        $boolSelected = [];
+        foreach ($boolKeys as $k) {
+            $val = $source instanceof Request ? $source->boolean($k) : (bool) ($source?->{$k} ?? false);
+            if ($val) {
+                $boolSelected[] = $k;
+            }
+        }
+
+        $stringSelected = [];
+        foreach ($stringKeys as $k) {
+            $raw = $source instanceof Request ? $source->input($k) : ($source?->{$k} ?? null);
+            $v = is_string($raw) ? trim($raw) : '';
+            if ($v !== '') {
+                $stringSelected[$k] = $v;
+            }
+        }
+
+        return [$boolSelected, $stringSelected];
+    }
+
+    private function findOverlappingReservation(
+        string $dateOfUse,
+        string $start,
+        string $end,
+        array $boolVenues,
+        array $stringVenues,
+        ?int $ignoreReservationId = null,
+        array $statuses = ['approved']
+    ): ?Reservation {
+        if (empty($boolVenues) && empty($stringVenues)) {
+            return null;
+        }
+
+        $q = Reservation::query()
+            ->whereDate('date_of_use', $dateOfUse)
+            ->whereIn('status', $statuses)
+            ->where('inclusive_time_start', '<', $end)
+            ->where('inclusive_time_end', '>', $start)
+            ->where(function ($sub) use ($boolVenues, $stringVenues) {
+                foreach ($boolVenues as $k) {
+                    $sub->orWhere($k, true);
+                }
+                foreach ($stringVenues as $k => $v) {
+                    $sub->orWhere($k, $v);
+                }
+            });
+
+        if ($ignoreReservationId) {
+            $q->where('id', '!=', $ignoreReservationId);
+        }
+
+        return $q->orderBy('id', 'desc')->first();
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -36,7 +134,7 @@ class ReservationController extends Controller
     {
         return Reservation::where('status', 'approved')
             ->select([
-                'id', 'activity_event', 'date_of_use', 'inclusive_time_start', 'inclusive_time_end', 'category_id',
+                'id', 'status', 'activity_event', 'date_of_use', 'inclusive_time_start', 'inclusive_time_end', 'category_id',
                 'hrdc_hall', 'av_studio', 'bleacher', 'alba_hall', 'student_center_mini_theater',
                 'cte_training_hall_2_or_3', 'admin_building_2nd_floor', 'multi_purpose_hall_3f',
                 'hum_av_theater', 'dance_studio_hall_3f', 'cme_gym', 'classroom_specify',
@@ -50,12 +148,35 @@ class ReservationController extends Controller
         $validated = $request->validate([
             'activity_event' => 'required|string',
             'requesting_party' => 'required|string',
-            'date_of_use' => 'required|date',
-            'inclusive_time_start' => 'required',
-            'inclusive_time_end' => 'required',
+            'date_of_use' => 'required|date|after_or_equal:today',
+            'inclusive_time_start' => 'required|date_format:H:i',
+            'inclusive_time_end' => 'required|date_format:H:i',
             'category_id' => 'required|exists:categories,id',
             // Add other validations as needed
         ]);
+
+        $start = (string) $request->input('inclusive_time_start');
+        $end = (string) $request->input('inclusive_time_end');
+        if ($start >= $end) {
+            return response()->json(['message' => 'Inclusive time end must be after start.'], 422);
+        }
+
+        [$boolVenues, $stringVenues] = $this->extractRequestedVenues($request);
+        $conflict = $this->findOverlappingReservation(
+            (string) $request->input('date_of_use'),
+            $start,
+            $end,
+            $boolVenues,
+            $stringVenues,
+            null,
+            ['approved', 'pending']
+        );
+        if ($conflict) {
+            return response()->json([
+                'message' => 'The selected time overlaps with an existing reservation for the same venue.',
+                'conflict_reservation_id' => $conflict->id,
+            ], 422);
+        }
 
         $reservation = Reservation::create(array_merge(
             $request->all(),
@@ -109,8 +230,41 @@ class ReservationController extends Controller
         if ($request->has('or_date')) {
             $rules['or_date'] = 'nullable|date';
         }
+        if ($request->has('inclusive_time_start')) {
+            $rules['inclusive_time_start'] = 'required|date_format:H:i';
+        }
+        if ($request->has('inclusive_time_end')) {
+            $rules['inclusive_time_end'] = 'required|date_format:H:i';
+        }
+        if ($request->has('date_of_use')) {
+            $rules['date_of_use'] = 'required|date|after_or_equal:today';
+        }
         if (!empty($rules)) {
             $request->validate($rules);
+        }
+
+        $dateOfUse = (string) ($request->input('date_of_use') ?? $reservation->date_of_use?->format('Y-m-d') ?? $reservation->date_of_use);
+        $start = (string) ($request->input('inclusive_time_start') ?? $reservation->inclusive_time_start);
+        $end = (string) ($request->input('inclusive_time_end') ?? $reservation->inclusive_time_end);
+        if ($start && $end && $start >= $end) {
+            return response()->json(['message' => 'Inclusive time end must be after start.'], 422);
+        }
+
+        [$boolVenues, $stringVenues] = $this->extractRequestedVenues($request, $reservation);
+        $conflict = $this->findOverlappingReservation(
+            $dateOfUse,
+            $start,
+            $end,
+            $boolVenues,
+            $stringVenues,
+            (int) $reservation->id,
+            ['approved', 'pending']
+        );
+        if ($conflict) {
+            return response()->json([
+                'message' => 'The selected time overlaps with an existing reservation for the same venue.',
+                'conflict_reservation_id' => $conflict->id,
+            ], 422);
         }
 
         $reservation->update($request->except(['user_id', 'status'])); // Status updated via separate endpoint
@@ -131,6 +285,29 @@ class ReservationController extends Controller
         }
 
         $reservation = Reservation::findOrFail($id);
+
+        if ($request->status === 'approved') {
+            $dateOfUse = (string) ($reservation->date_of_use?->format('Y-m-d') ?? $reservation->date_of_use);
+            $start = (string) $reservation->inclusive_time_start;
+            $end = (string) $reservation->inclusive_time_end;
+            [$boolVenues, $stringVenues] = $this->extractRequestedVenues(new Request(), $reservation);
+
+            $conflict = $this->findOverlappingReservation(
+                $dateOfUse,
+                $start,
+                $end,
+                $boolVenues,
+                $stringVenues,
+                (int) $reservation->id
+            );
+            if ($conflict) {
+                return response()->json([
+                    'message' => 'Cannot approve: this reservation overlaps with an already approved reservation for the same venue.',
+                    'conflict_reservation_id' => $conflict->id,
+                ], 422);
+            }
+        }
+
         $reservation->status = $request->status;
         // Store or clear rejection reason based on status
         if ($request->status === 'rejected') {

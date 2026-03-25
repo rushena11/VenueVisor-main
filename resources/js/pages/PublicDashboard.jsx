@@ -8,6 +8,7 @@ import FaqsModal from '../components/FaqsModal';
 import UserManualModal from '../components/UserManualModal';
 import BugReportModal from '../components/BugReportModal';
 const ReservationDetailsModal = React.lazy(() => import('../components/ReservationDetailsModal'));
+import { TIME_SLOTS } from '../components/PDF/BookingPDF';
 
 const PublicDashboard = () => {
     const navigate = useNavigate();
@@ -116,7 +117,7 @@ const PublicDashboard = () => {
         if (!uid) return true;
         if (typeof r?.user_id !== 'undefined' && r.user_id !== null) return String(r.user_id) === uid;
         if (typeof r?.user?.id !== 'undefined' && r.user?.id !== null) return String(r.user.id) === uid;
-        return true;
+        return false;
     };
     const applyReservationUpdates = (latest, activeUser) => {
         const uid = getUserId(activeUser);
@@ -286,25 +287,64 @@ const PublicDashboard = () => {
 
     const venueKeys = Object.keys(venueNames);
     const inferVenueKey = (r) => venueKeys.find(k => !!r?.[k]) || null;
+    const timeToMin = (t) => {
+        if (!t || typeof t !== 'string') return NaN;
+        const [hh, mm] = t.split(':').map(n => parseInt(n, 10));
+        if (Number.isNaN(hh) || Number.isNaN(mm)) return NaN;
+        return (hh * 60) + mm;
+    };
+    const overlaps = (aStart, aEnd, bStart, bEnd) => {
+        const as = timeToMin(aStart);
+        const ae = timeToMin(aEnd);
+        const bs = timeToMin(bStart);
+        const be = timeToMin(bEnd);
+        if ([as, ae, bs, be].some(Number.isNaN)) return false;
+        return as < be && ae > bs;
+    };
+    const occupiedSlotKeysForVenueDate = (venueKey, dateStr) => {
+        const set = new Set();
+        if (!venueKey || !dateStr) return set;
+        const dayReservations = reservations.filter(
+            r => r.date_of_use === dateStr && (r.status === 'approved' || r.status === 'pending') && !!r?.[venueKey]
+        );
+        TIME_SLOTS.forEach(slot => {
+            const blocked = dayReservations.some(r => overlaps(r?.inclusive_time_start, r?.inclusive_time_end, slot.start, slot.end));
+            if (blocked) set.add(slot.key);
+        });
+        return set;
+    };
 
     const fetchData = async (tokenOverride, userOverride) => {
         setLoading(true);
         try {
             const activeToken = typeof tokenOverride !== 'undefined' ? tokenOverride : token;
             const headers = activeToken ? { Authorization: `Bearer ${activeToken}` } : undefined;
-            const reservationsEndpoint = activeToken ? '/api/reservations' : '/api/public/reservations';
-            const [venuesRes, resRes] = await Promise.all([
+            const activeUser = userOverride || user;
+            const isRequester = !!activeToken && activeUser?.role === 'requester';
+
+            const [venuesRes, privateResRes, publicResRes] = await Promise.all([
                 axios.get('/api/venues').catch(() => ({ data: [] })),
-                axios.get(reservationsEndpoint, { headers }).catch(() => ({ data: [] }))
+                activeToken ? axios.get('/api/reservations', { headers }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+                isRequester || !activeToken
+                    ? axios.get('/api/public/reservations').catch(() => ({ data: [] }))
+                    : Promise.resolve({ data: [] })
             ]);
 
             setVenues(venuesRes.data);
-            const latest = normalizeReservations(resRes.data);
-            if (activeToken) {
-                applyReservationUpdates(latest, userOverride || user);
-            } else {
-                setReservations(latest);
-            }
+            const latestPrivate = normalizeReservations(privateResRes.data);
+            const latestPublic = normalizeReservations(publicResRes.data);
+            const mergedMap = new Map();
+            latestPublic.forEach(r => {
+                if (!r) return;
+                mergedMap.set(String(r.id), r);
+            });
+            latestPrivate.forEach(r => {
+                if (!r) return;
+                mergedMap.set(String(r.id), r);
+            });
+            const latest = Array.from(mergedMap.values());
+            if (activeToken) applyReservationUpdates(latest, activeUser);
+            else setReservations(latest);
         } catch (error) {
             console.error("Error fetching data", error);
         } finally {
@@ -426,16 +466,10 @@ const PublicDashboard = () => {
     const getBookedVenuesForDate = (date) => {
         if (!date) return new Set();
         const dateStr = dateKey(date);
-        
-        const dayReservations = reservations.filter(
-            r => r.date_of_use === dateStr && (r.status === 'approved' || r.status === 'pending')
-        );
-        
         const bookedVenues = new Set();
-        dayReservations.forEach(r => {
-            venueKeys.forEach(key => {
-                if (r[key]) bookedVenues.add(key);
-            });
+        venueKeys.forEach(key => {
+            const occupied = occupiedSlotKeysForVenueDate(key, dateStr);
+            if (occupied.size >= TIME_SLOTS.length) bookedVenues.add(key);
         });
         return bookedVenues;
     };
@@ -497,6 +531,14 @@ const PublicDashboard = () => {
         const available = total - (approved + pending + rejected);
         return { approved, pending, rejected, available, total };
     };
+    const isPastDate = (d) => {
+        if (!d) return false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dd = new Date(d);
+        dd.setHours(0, 0, 0, 0);
+        return dd < today;
+    };
 
     const handleMonthClick = (index) => {
         const newDate = new Date(currentDate);
@@ -505,7 +547,7 @@ const PublicDashboard = () => {
     };
 
     const handleDayClick = (date) => {
-        if (date) {
+        if (date && !isPastDate(date)) {
             setSelectedDay(date);
         }
     };
@@ -911,6 +953,7 @@ const PublicDashboard = () => {
                                 {generateCalendarDays().map((date, index) => {
                                     const { total, available: _unusedAvailable } = getAvailability(date);
                                     const isToday = date && new Date().toDateString() === date.toDateString();
+                                    const isPast = date && isPastDate(date);
                                     const { approved, pending, rejected } = getVenueStatusCountsForDate(date);
                                     const approvedPct = total > 0 ? (approved / total) * 100 : 0;
                                     let adminUnavailableCount = 0;
@@ -931,8 +974,8 @@ const PublicDashboard = () => {
                                     return (
                                         <div 
                                             key={index} 
-                                            onClick={() => date && handleDayClick(date)}
-                                            className={`min-h-[96px] sm:min-h-[120px] bg-white p-1.5 sm:p-2 relative group hover:bg-gray-50 transition-colors ${!date ? 'bg-gray-50 cursor-default' : 'cursor-pointer'}`}
+                                            onClick={() => date && !isPast && handleDayClick(date)}
+                                            className={`min-h-[96px] sm:min-h-[120px] bg-white p-1.5 sm:p-2 relative group transition-colors ${!date ? 'bg-gray-50 cursor-default' : isPast ? 'bg-gray-50 cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-gray-50'}`}
                                         >
                                             {date && (
                                                 <>
@@ -1005,16 +1048,16 @@ const PublicDashboard = () => {
                         {/* Scrollable Content */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-4">
                             {venueKeys.map(key => {
-                                const bookedVenues = getBookedVenuesForDate(selectedDay);
-                                const isAvailable = !bookedVenues.has(key);
                                 const dateStr = dateKey(selectedDay);
                                 const venueReservations = reservations.filter(r => r.date_of_use === dateStr && r[key]);
-                                const approvedCount = venueReservations.filter(r => r.status === 'approved').length;
-                                const SLOT_CAPACITY = 7;
+                                const occupied = occupiedSlotKeysForVenueDate(key, dateStr);
+                                const approvedCount = occupied.size;
+                                const SLOT_CAPACITY = TIME_SLOTS.length;
                                 const label = venueNames[key];
                                 const adminStatus = getVenueStatusForLabel(label);
                                 const adminUnavailable = adminStatus && adminStatus !== 'available';
                                 const open = adminUnavailable ? 0 : Math.max(SLOT_CAPACITY - approvedCount, 0);
+                                const isAvailable = open > 0 && !adminUnavailable;
                                 const statusLabel = adminUnavailable
                                     ? (adminStatus === 'maintenance' ? 'Under Maintenance' : adminStatus === 'repair' ? 'Under Repair' : 'Unavailable')
                                     : (open === 0 ? 'Unavailable' : (approvedCount > 0 ? 'Semi-booked' : 'Available'));
@@ -1031,10 +1074,10 @@ const PublicDashboard = () => {
                                 return (
                                     <div 
                                         key={key} 
-                                        onClick={() => { if (!adminUnavailable) handleVenueClick(key); }}
+                                        onClick={() => { if (isAvailable) handleVenueClick(key); }}
                                         className={`border rounded-lg p-4 bg-white shadow-sm 
                                             ${adminUnavailable ? 'border-red-200 opacity-80' : (open === 0 ? 'border-gray-200' : (approvedCount > 0 ? 'border-indigo-200' : 'border-green-200'))}
-                                            ${adminUnavailable ? 'cursor-not-allowed' : 'cursor-pointer hover:shadow-md hover:border-blue-300'} transition-all ring-offset-2
+                                            ${(adminUnavailable || open === 0) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:shadow-md hover:border-blue-300'} transition-all ring-offset-2
                                         `}
                                     >
                                         <div className="flex justify-between items-start mb-1">
@@ -1045,7 +1088,7 @@ const PublicDashboard = () => {
                                                 {statusLabel}
                                             </span>
                                         </div>
-                                        <p className="text-xs text-gray-500 mb-2">7 fixed slots per day</p>
+                                        <p className="text-xs text-gray-500 mb-2">{SLOT_CAPACITY} fixed slots per day</p>
 
                                         {venueReservations.length === 0 ? (
                                             <div className="flex items-center gap-2 text-sm font-medium text-green-600">
@@ -1145,6 +1188,7 @@ const PublicDashboard = () => {
                 venueName={selectedVenueForBooking ? venueNames[selectedVenueForBooking] : ''}
                 venueKey={selectedVenueForBooking}
                 selectedDate={bookingDate} 
+                existingReservations={reservations}
                 reservationToEdit={reservationToEdit}
                 onNotify={(msg, type) => addToast(msg, type)}
                 onSubmitted={(res) => {

@@ -15,7 +15,7 @@ import BookingPDF, {
 // Using the existing logo path from the project
 const Logo = "/assets/LNULogo.png";
 
-const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, onSubmitted, reservationToEdit, onNotify }) => { 
+const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, existingReservations, onSubmitted, reservationToEdit, onNotify }) => { 
   const isEditing = !!reservationToEdit?.id;
 
   const initialFormData = { 
@@ -43,6 +43,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const printRef = useRef(null);
   const shouldRenderForm = isGeneratingPdf;
+  const listReservations = Array.isArray(existingReservations) ? existingReservations : [];
   const getStoredUserName = () => {
     try {
       const raw = localStorage.getItem("user");
@@ -258,6 +259,55 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       return next;
     });
   };
+
+  const timeToMin = (t) => {
+    if (!t || typeof t !== 'string') return NaN;
+    const [hh, mm] = t.split(':').map(n => parseInt(n, 10));
+    if (Number.isNaN(hh) || Number.isNaN(mm)) return NaN;
+    return (hh * 60) + mm;
+  };
+  const overlaps = (aStart, aEnd, bStart, bEnd) => {
+    const as = timeToMin(aStart);
+    const ae = timeToMin(aEnd);
+    const bs = timeToMin(bStart);
+    const be = timeToMin(bEnd);
+    if ([as, ae, bs, be].some(Number.isNaN)) return false;
+    return as < be && ae > bs;
+  };
+  const computeUnavailableSlotKeys = (dateStr) => {
+    const set = new Set();
+    const vKey = (venueKey || '').toString();
+    if (!dateStr || !vKey) return set;
+
+    const normalizedDate = dateStr.trim();
+    const relevant = listReservations.filter(r => {
+      const rStatus = (r?.status || '').toString().toLowerCase();
+      if (!(rStatus === 'approved' || rStatus === 'pending')) return false;
+      if (isEditing && r?.id && reservationToEdit?.id && String(r.id) === String(reservationToEdit.id)) return false;
+      const rDate = toDateInputValue(r?.date_of_use);
+      if (rDate !== normalizedDate) return false;
+      return !!r?.[vKey];
+    });
+
+    TIME_SLOTS.forEach(slot => {
+      const blocked = relevant.some(r =>
+        overlaps(r?.inclusive_time_start, r?.inclusive_time_end, slot.start, slot.end)
+      );
+      if (blocked) set.add(slot.key);
+    });
+
+    return set;
+  };
+
+  const activeDateStr = (formData.dateOfUse?.trim() || toDateInputValue(selectedDate) || '').trim();
+  const unavailableSlotKeys = computeUnavailableSlotKeys(activeDateStr);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (selectedSlots.length === 0) return;
+    if (unavailableSlotKeys.size === 0) return;
+    setSelectedSlots(prev => prev.filter(k => !unavailableSlotKeys.has(k)));
+  }, [isOpen, venueKey, activeDateStr, reservationToEdit?.id, existingReservations]);
   const togglePick = (setFn, prevArr, item) => {
     if (prevArr.includes(item)) {
       setFn(prevArr.filter(i => i !== item));
@@ -376,6 +426,25 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       if (!dateOfUse) {
         if (onNotify) onNotify("Please select the Date of Use.", 'warning');
         return;
+      }
+      {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const d = new Date(dateOfUse);
+        d.setHours(0, 0, 0, 0);
+        if (!Number.isNaN(d.getTime()) && d < today) {
+          if (onNotify) onNotify("You cannot reserve a past date.", 'warning');
+          return;
+        }
+      }
+      if (selectedSlots.length > 0) {
+        const unavailable = computeUnavailableSlotKeys(dateOfUse);
+        const blocked = selectedSlots.filter(k => unavailable.has(k));
+        if (blocked.length > 0) {
+          if (onNotify) onNotify("One or more selected time slots are no longer available.", 'warning');
+          setSelectedSlots(prev => prev.filter(k => !unavailable.has(k)));
+          return;
+        }
       }
       let start = "";
       let end = "";
@@ -588,15 +657,22 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
             <div className="text-sm font-bold text-gray-700 mb-2">TIME SLOTS (2-HOUR WINDOWS)</div>
             <div className="border border-gray-400 rounded-lg p-3 space-y-2">
               {TIME_SLOTS.map(s => (
+                (() => {
+                  const isUnavailable = unavailableSlotKeys.has(s.key);
+                  return (
                 <label
                   key={s.key}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition border-[1px] border-solid focus-within:outline-none focus-within:ring-2 focus-within:ring-gray-100 ${
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition border-[1px] border-solid focus-within:outline-none focus-within:ring-2 focus-within:ring-gray-100 ${
+                    isUnavailable ? 'cursor-not-allowed opacity-60 border-gray-200 bg-gray-100' : 'cursor-pointer'
+                  } ${
                     selectedSlots.includes(s.key) ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'
                   }`}
                 >
-                  <input className="h-4 w-4 accent-blue-700" type="checkbox" checked={selectedSlots.includes(s.key)} onChange={() => toggleSlot(s.key)} />
+                  <input className="h-4 w-4 accent-blue-700" type="checkbox" disabled={isUnavailable} checked={selectedSlots.includes(s.key)} onChange={() => !isUnavailable && toggleSlot(s.key)} />
                   <span className="text-sm">{s.label}</span>
                 </label>
+                  );
+                })()
               ))}
             </div>
             <div className="text-xs text-gray-500 mt-2">You may select multiple slots for the same day.</div>

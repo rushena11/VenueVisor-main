@@ -88,3 +88,7 @@
 .text-fg-warning { color: rgb(180 83 9); }
 .bg-warning-soft { background-color: rgb(254 243 199); }
 .focus\:ring-neutral-tertiary:focus { --tw-ring-color: rgb(229 231 235); }
+
+button {
+    cursor: pointer;
+}

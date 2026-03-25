@@ -140,9 +140,28 @@ const ReservationForm = () => {
             try {
                 const token = localStorage.getItem('token');
                 const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-                const res = await axios.get('/api/reservations', { headers }).catch(() => ({ data: [] }));
-                const normalized = Array.isArray(res.data) ? res.data.map(r => ({ ...r, date_of_use: dateOnly(r?.date_of_use) })) : [];
-                setReservations(normalized);
+                const [privateRes, publicRes] = token
+                    ? await Promise.all([
+                        axios.get('/api/reservations', { headers }).catch(() => ({ data: [] })),
+                        axios.get('/api/public/reservations').catch(() => ({ data: [] }))
+                    ])
+                    : await Promise.all([
+                        Promise.resolve({ data: [] }),
+                        axios.get('/api/public/reservations').catch(() => ({ data: [] }))
+                    ]);
+
+                const map = new Map();
+                const put = (arr) => {
+                    if (!Array.isArray(arr)) return;
+                    arr.forEach(r => {
+                        if (!r) return;
+                        const id = r.id ?? `${r.date_of_use}-${r.inclusive_time_start}-${r.inclusive_time_end}`;
+                        map.set(id, { ...r, date_of_use: dateOnly(r?.date_of_use) });
+                    });
+                };
+                put(publicRes.data);
+                put(privateRes.data);
+                setReservations(Array.from(map.values()));
             } catch {}
         };
         fetchReservations();
@@ -233,6 +252,32 @@ const ReservationForm = () => {
     };
     const venueKeys = Object.keys(venueNames);
     const dateKey = (d) => d ? d.toLocaleDateString('en-CA') : '';
+    const timeToMin = (t) => {
+        if (!t || typeof t !== 'string') return NaN;
+        const [hh, mm] = t.split(':').map(n => parseInt(n, 10));
+        if (Number.isNaN(hh) || Number.isNaN(mm)) return NaN;
+        return (hh * 60) + mm;
+    };
+    const overlaps = (aStart, aEnd, bStart, bEnd) => {
+        const as = timeToMin(aStart);
+        const ae = timeToMin(aEnd);
+        const bs = timeToMin(bStart);
+        const be = timeToMin(bEnd);
+        if ([as, ae, bs, be].some(Number.isNaN)) return false;
+        return as < be && ae > bs;
+    };
+    const occupiedSlotKeysForVenueDate = (venueKey, dateStr) => {
+        const set = new Set();
+        if (!venueKey || !dateStr) return set;
+        const dayReservations = reservations.filter(
+            r => r.date_of_use === dateStr && (r.status === 'approved' || r.status === 'pending') && !!r?.[venueKey]
+        );
+        TIME_SLOTS.forEach(slot => {
+            const blocked = dayReservations.some(r => overlaps(r?.inclusive_time_start, r?.inclusive_time_end, slot.start, slot.end));
+            if (blocked) set.add(slot.key);
+        });
+        return set;
+    };
     const tokenize = (s) => (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean);
     const containsAll = (small, big) => small.every(t => big.includes(t));
     const getVenueStatusForLabel = (label) => {
@@ -268,17 +313,21 @@ const ReservationForm = () => {
         for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
         return days;
     };
+    const isPastDate = (d) => {
+        if (!d) return false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const dd = new Date(d);
+        dd.setHours(0, 0, 0, 0);
+        return dd < today;
+    };
     const getBookedVenuesForDate = (date) => {
         if (!date) return new Set();
         const dateStr = dateKey(date);
-        const dayReservations = reservations.filter(
-            r => r.date_of_use === dateStr && (r.status === 'approved' || r.status === 'pending')
-        );
         const bookedVenues = new Set();
-        dayReservations.forEach(r => {
-            venueKeys.forEach(key => {
-                if (r[key]) bookedVenues.add(key);
-            });
+        venueKeys.forEach(key => {
+            const occupied = occupiedSlotKeysForVenueDate(key, dateStr);
+            if (occupied.size >= TIME_SLOTS.length) bookedVenues.add(key);
         });
         return bookedVenues;
     };
@@ -329,6 +378,7 @@ const ReservationForm = () => {
     };
     const handleDayClick = (date) => {
         if (!date) return;
+        if (isPastDate(date)) return;
         setSelectedDay(date);
         setFormData(prev => ({ ...prev, date_of_use: dateKey(date) }));
     };
@@ -486,6 +536,7 @@ const ReservationForm = () => {
                             {generateCalendarDays().map((date, index) => {
                                 const { total } = getAvailability(date);
                                 const isToday = date && new Date().toDateString() === date.toDateString();
+                                const isPast = date && isPastDate(date);
                                 const { approved } = getVenueStatusCountsForDate(date);
                                 const approvedPct = total > 0 ? (approved / total) * 100 : 0;
                                 let adminUnavailableCount = 0;
@@ -506,8 +557,8 @@ const ReservationForm = () => {
                                 return (
                                     <div
                                         key={index}
-                                        onClick={() => date && handleDayClick(date)}
-                                        className={`min-h-[96px] sm:min-h-[120px] bg-white p-1.5 sm:p-2 relative group hover:bg-gray-50 transition-colors ${!date ? 'bg-gray-50 cursor-default' : 'cursor-pointer'}`}
+                                        onClick={() => date && !isPast && handleDayClick(date)}
+                                        className={`min-h-[96px] sm:min-h-[120px] bg-white p-1.5 sm:p-2 relative group transition-colors ${!date ? 'bg-gray-50 cursor-default' : isPast ? 'bg-gray-50 cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-gray-50'}`}
                                     >
                                         {date && (
                                             <>
@@ -581,16 +632,16 @@ const ReservationForm = () => {
                         </div>
                         <div className="flex-1 overflow-y-auto p-6 space-y-3">
                             {venueKeys.map(key => {
-                                const bookedVenues = getBookedVenuesForDate(selectedDay);
                                 const label = venueNames[key];
                                 const adminStatus = getVenueStatusForLabel(label);
                                 const adminUnavailable = adminStatus && adminStatus !== 'available';
-                                const isAvailable = !bookedVenues.has(key) && !adminUnavailable;
                                 const dateStr = dateKey(selectedDay);
                                 const venueReservations = reservations.filter(r => r.date_of_use === dateStr && r[key]);
-                                const approvedCount = venueReservations.filter(r => r.status === 'approved').length;
-                                const SLOT_CAPACITY = 7;
+                                const occupied = occupiedSlotKeysForVenueDate(key, dateStr);
+                                const approvedCount = occupied.size;
+                                const SLOT_CAPACITY = TIME_SLOTS.length;
                                 const open = adminUnavailable ? 0 : Math.max(SLOT_CAPACITY - approvedCount, 0);
+                                const isAvailable = open > 0 && !adminUnavailable;
                                 const statusLabel = adminUnavailable
                                     ? (adminStatus === 'maintenance' ? 'Under Maintenance' : adminStatus === 'repair' ? 'Under Repair' : 'Unavailable')
                                     : (open === 0 ? 'Unavailable' : (approvedCount > 0 ? 'Semi-booked' : 'Available'));
@@ -606,10 +657,10 @@ const ReservationForm = () => {
                                 return (
                                     <div
                                         key={key}
-                                        onClick={() => { if (!adminUnavailable) handleVenueClick(key); }}
+                                        onClick={() => { if (isAvailable) handleVenueClick(key); }}
                                         className={`border rounded-lg p-4 bg-white shadow-sm 
                                             ${adminUnavailable ? 'border-red-200 opacity-80' : (open === 0 ? 'border-gray-200' : (approvedCount > 0 ? 'border-indigo-200' : 'border-green-200'))}
-                                            ${adminUnavailable ? 'cursor-not-allowed' : 'cursor-pointer hover:shadow-md hover:border-blue-300'} transition-all ring-offset-2
+                                            ${(adminUnavailable || open === 0) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer hover:shadow-md hover:border-blue-300'} transition-all ring-offset-2
                                         `}
                                     >
                                         <div className="flex items-start justify-between mb-1">
@@ -621,7 +672,7 @@ const ReservationForm = () => {
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className="text-xs text-gray-500">7 fixed slots per day</div>
+                                            <div className="text-xs text-gray-500">{SLOT_CAPACITY} fixed slots per day</div>
                                         </div>
                                         {isAvailable ? (
                                             <div className="flex items-center gap-2 text-sm font-medium text-green-600">
@@ -676,6 +727,7 @@ const ReservationForm = () => {
                             venueName={selectedVenueForBooking ? venueNames[selectedVenueForBooking] : ''}
                             venueKey={selectedVenueForBooking}
                             selectedDate={selectedDay}
+                            existingReservations={reservations}
                             onSubmitted={(res) => {
                                 const normalized = res ? { ...res, date_of_use: dateOnly(res.date_of_use) } : res;
                                 if (normalized) {

@@ -36,6 +36,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
   const [selectedAudio, setSelectedAudio] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState([]);
   const [selectedLighting, setSelectedLighting] = useState([]);
+  const [wifiPreference, setWifiPreference] = useState("no_wifi");
   const [audioDetails, setAudioDetails] = useState({});
   const [videoDetails, setVideoDetails] = useState({});
   const [lightingDetails, setLightingDetails] = useState({});
@@ -122,11 +123,13 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
           date_of_use: dateOfUse,
           inclusive_time_start: start,
           inclusive_time_end: end,
+          pax_count: formData.paxCount?.toString().trim() ? parseInt(formData.paxCount, 10) : null,
           or_number: formData.orNumber,
           amount: formData.amount,
           or_date: formData.orDate,
           venue_name: venueName || "",
           venue_key: venueKey || "",
+          wifi_preference: wifiPreference,
           selected_audio: selectedAudio,
           selected_video: selectedVideo,
           selected_lighting: selectedLighting,
@@ -192,6 +195,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       setSelectedAudio([]);
       setSelectedVideo([]);
       setSelectedLighting([]);
+      setWifiPreference("no_wifi");
       setAudioDetails({});
       setVideoDetails({});
       setLightingDetails({});
@@ -216,6 +220,16 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
     setSelectedSlots([]);
     setAcknowledged(true);
     setShowForm(false);
+    const normalizeWifiPreference = (raw) => {
+      const v = normalizeKey(raw);
+      if (!v) return "no_wifi";
+      if (v === "wifi" || v === "with wifi") return "wifi";
+      if (v === "no wifi") return "no_wifi";
+      if (v === "true" || v === "1") return "wifi";
+      if (v === "false" || v === "0") return "no_wifi";
+      return "no_wifi";
+    };
+    setWifiPreference(normalizeWifiPreference(reservationToEdit?.wifi_preference));
 
     const mk = (qty, remarks) => ({ qty: (qty ?? '') + '', remarks: (remarks ?? '') + '' });
     const a = {
@@ -381,6 +395,9 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       [item]: { ...(prev[item] || { qty: "", remarks: "" }), [field]: value }
     }));
   };
+  const toggleWifiPreference = (value) => {
+    setWifiPreference(value);
+  };
   useEffect(() => {
     const { text } = computeInclusiveFromSlots(selectedSlots);
     if (text) {
@@ -495,6 +512,8 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
         inclusive_time_start: start,
         inclusive_time_end: end,
         category_id,
+        pax_count: formData.paxCount?.toString().trim() ? parseInt(formData.paxCount, 10) : null,
+        wifi_preference: wifiPreference,
         amplifier_qty: avQty.amplifier_qty,
         speaker_qty: avQty.speaker_qty,
         microphone_qty: avQty.microphone_qty,
@@ -797,6 +816,34 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                   ))}
                 </div>
               </div>
+              <div className="border border-gray-400 rounded-md p-3">
+                <div className="text-xs font-bold text-indigo-700 mb-2 flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12.55a11 11 0 0114 0M8.5 15.5a6 6 0 017 0M12 18h.01" />
+                  </svg>
+                  <span>WIFI</span>
+                </div>
+                <div className="flex items-center gap-6">
+                  <label className="flex items-center gap-2">
+                    <input
+                      className="h-4 w-4 accent-indigo-700"
+                      type="checkbox"
+                      checked={wifiPreference === "wifi"}
+                      onChange={() => toggleWifiPreference("wifi")}
+                    />
+                    <span className="text-sm">With Wifi</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      className="h-4 w-4 accent-indigo-700"
+                      type="checkbox"
+                      checked={wifiPreference === "no_wifi"}
+                      onChange={() => toggleWifiPreference("no_wifi")}
+                    />
+                    <span className="text-sm">No Wifi</span>
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
           <div className="mt-4 border rounded p-3 bg-red-50 border-red-200">
@@ -814,15 +861,16 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
               </div>
               
               <div className="flex items-center gap-1">
-                <button 
-                  type="button"
-                  aria-pressed={acknowledged}
-                  onClick={() => setAcknowledged(prev => !prev)} 
-                  className={`${acknowledged ? 'bg-green-700 text-white text-sm' : 'border border-red-200 text-red-500 bg-white text-sm'} px-1 py-1 rounded`}
-                >
-                  {acknowledged ? 'Acknowledged' : 'I Understand'}
-                </button>
-                <span className="text-xs text-red-700">Click to acknowledge before submitting.</span>
+                <label className="flex items-center gap-2">
+                  <input
+                    className="h-4 w-4 accent-green-700"
+                    type="checkbox"
+                    checked={acknowledged}
+                    onChange={(e) => setAcknowledged(e.target.checked)}
+                  />
+                  <span className="text-sm text-red-700 font-semibold">I Understand</span>
+                </label>
+                <span className="text-xs text-red-700">Check to acknowledge before submitting.</span>
               </div>
             </div>
           </div>

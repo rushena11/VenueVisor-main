@@ -144,7 +144,7 @@ const PublicDashboard = () => {
                 const type = nextStatus === 'approved' ? 'success' : nextStatus === 'rejected' ? 'error' : 'info';
                 const venue = Object.keys(venueNames).find(k => r[k]);
                 const venueLabel = venue ? venueNames[venue] : 'Venue';
-                const message = `Request ${r.activity_event || ''} on ${r.date_of_use} at ${venueLabel} ${nextStatus.toUpperCase()}`;
+                const message = `Request ${r.activity_event || ''} on ${formatDateLong(r.date_of_use)} at ${venueLabel} ${nextStatus.toUpperCase()}`;
                 setToasts(t => [...t, { id: `${r.id}-${Date.now()}`, message, type }]);
             }
             prevMap.set(r.id, nextStatus);
@@ -242,6 +242,34 @@ const PublicDashboard = () => {
         const hh = hours % 12 || 12;
         const mm = (m ?? 0).toString().padStart(2, '0');
         return `${hh}:${mm}${ampm}`;
+    };
+
+    const formatDateLong = (s) => {
+        if (!s) return '';
+        if (typeof s === 'string') {
+            const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (m) {
+                const y = Number(m[1]);
+                const mo = Number(m[2]);
+                const d = Number(m[3]);
+                if (y && mo && d) {
+                    return new Intl.DateTimeFormat('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                        timeZone: 'Asia/Manila'
+                    }).format(new Date(Date.UTC(y, mo - 1, d)));
+                }
+            }
+        }
+        const dt = new Date(s);
+        if (isNaN(dt.getTime())) return String(s);
+        return new Intl.DateTimeFormat('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+            timeZone: 'Asia/Manila'
+        }).format(dt);
     };
 
     const openRequests = () => {
@@ -689,7 +717,7 @@ const PublicDashboard = () => {
                                         .map((r) => {
                                             const venueLabels = venueKeys.filter(k => r?.[k]).map(k => venueNames[k]);
                                             const venueText = venueLabels.length > 0 ? venueLabels.join(', ') : '—';
-                                            const dateText = r?.date_of_use || '—';
+                                            const dateText = r?.date_of_use ? formatDateLong(r.date_of_use) : '—';
                                             const timeText = r?.inclusive_time_start && r?.inclusive_time_end
                                                 ? `${formatTime12h(r.inclusive_time_start)} - ${formatTime12h(r.inclusive_time_end)}`
                                                 : 'Whole day';

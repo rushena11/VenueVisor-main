@@ -5,14 +5,29 @@ const Logo = "/assets/LNULogo.png";
 const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStatusUpdate, onReservationUpdate, onEdit, onDeleted, onNotify }) => {
     if (!isOpen || !reservation) return null;
 
+    const parseDateInput = (s) => {
+        if (!s) return null;
+        if (typeof s === 'string') {
+            const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (m) {
+                const y = Number(m[1]);
+                const mo = Number(m[2]);
+                const d = Number(m[3]);
+                if (y && mo && d) return new Date(Date.UTC(y, mo - 1, d));
+            }
+        }
+        const dt = new Date(s);
+        return isNaN(dt.getTime()) ? null : dt;
+    };
+
     const formatDate = (s) => {
         if (!s) return '';
-        const dt = new Date(s);
-        if (isNaN(dt.getTime())) return s;
-        return new Intl.DateTimeFormat('en-PH', {
-            year: 'numeric',
+        const dt = parseDateInput(s);
+        if (!dt) return String(s);
+        return new Intl.DateTimeFormat('en-US', {
             month: 'long',
-            day: '2-digit',
+            day: 'numeric',
+            year: 'numeric',
             timeZone: 'Asia/Manila'
         }).format(dt);
     };
@@ -30,17 +45,6 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
             hour12: true,
             timeZone: 'Asia/Manila'
         }).format(d).replace(' ', '');
-    };
-    const formatDateShortPH = (s) => {
-        if (!s) return '';
-        const dt = new Date(s);
-        if (isNaN(dt.getTime())) return s;
-        return new Intl.DateTimeFormat('en-GB', {
-            year: '2-digit',
-            month: '2-digit',
-            day: '2-digit',
-            timeZone: 'Asia/Manila'
-        }).format(dt);
     };
     const formatCurrencyPHP = (v) => {
         if (v === null || v === undefined || v === '') return '';
@@ -60,6 +64,7 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [confirmDecisionOpen, setConfirmDecisionOpen] = useState(false);
     const [decisionAction, setDecisionAction] = useState(null);
+    const [wifiPreference, setWifiPreference] = useState(reservation.wifi_preference);
 
     const handleOrNumberChange = (e) => {
         const raw = e.target.value || '';
@@ -84,7 +89,26 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
         setOrDate(reservation.or_date || '');
         setSaveError('');
         setSaveOk('');
+        setWifiPreference(reservation.wifi_preference);
     }, [reservation]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        if (!reservation?.id) return;
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        axios.get(`/api/reservations/${reservation.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        }).then((res) => {
+            const pref = res?.data?.wifi_preference;
+            if (typeof pref !== 'undefined') {
+                setWifiPreference(pref);
+            }
+            if (onReservationUpdate && res?.data?.id) {
+                onReservationUpdate(res.data);
+            }
+        }).catch(() => {});
+    }, [isOpen, reservation?.id]);
 
     const isOrLocked = reservation.status === 'approved';
 
@@ -111,7 +135,7 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
             const updated = res?.data ? res.data : { ...reservation, or_number: orNumber, or_amount: orAmount, or_date: orDate };
             if (onReservationUpdate) onReservationUpdate(updated);
             const amountText = formatCurrencyPHP(orAmount);
-            const dateText = orDate ? formatDateShortPH(orDate) : '';
+            const dateText = orDate ? formatDate(orDate) : '';
             const msg = `Official Receipt saved: OR ${orNumber}${amountText ? ` • ${amountText}` : ''}${dateText ? ` • ${dateText}` : ''}`;
             setSaveOk(msg);
             if (onNotify) onNotify(msg, 'success');
@@ -240,6 +264,15 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
         reservation.lighting_others_qty
     ].some(qty => Number(qty) > 0) || !!lightingRemarks;
 
+    const wifiRaw = String(wifiPreference ?? '').trim().toLowerCase();
+    const wifiNormalized = (() => {
+        if (!wifiRaw) return 'no_wifi';
+        if (wifiRaw === 'wifi' || wifiRaw === 'with wifi' || wifiRaw === 'with_wifi' || wifiRaw === 'withwifi' || wifiRaw === 'true' || wifiRaw === '1') return 'wifi';
+        if (wifiRaw === 'no_wifi' || wifiRaw === 'no wifi' || wifiRaw === 'nowifi' || wifiRaw === 'false' || wifiRaw === '0') return 'no_wifi';
+        return 'no_wifi';
+    })();
+    const wifiLabel = wifiNormalized === 'wifi' ? 'With Wifi' : 'No Wifi';
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden max-h-[90vh] flex flex-col">
@@ -321,7 +354,7 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                                         <div className="flex items-center justify-between text-sm">
                                             <span className="text-gray-500">Date</span>
                                             <span className="text-gray-900">
-                                                {(reservation.or_date ?? orDate) ? formatDateShortPH(reservation.or_date ?? orDate) : '-'}
+                                                {(reservation.or_date ?? orDate) ? formatDate(reservation.or_date ?? orDate) : '-'}
                                             </span>
                                         </div>
                                     </div>
@@ -365,7 +398,7 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                                             <div className="text-sm text-gray-800 bg-white border border-green-200 rounded-lg p-3 space-y-1">
                                                 <div>OR Number: {orNumber || ''}</div>
                                                 <div>Amount: {orAmount || ''}</div>
-                                                <div>Date: {orDate ? formatDateShortPH(orDate) : ''}</div>
+                                                <div>Date: {orDate ? formatDate(orDate) : ''}</div>
                                             </div>
                                         )}
                                         <div className="flex justify-end">
@@ -428,6 +461,12 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                                         {lightingLines.length > 0 ? lightingLines.map((line, i) => (
                                             <div key={`lighting-${i}`}>{line}</div>
                                         )) : <div>-</div>}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="text-xs font-semibold text-gray-600">WIFI</div>
+                                    <div className="mt-1 text-sm text-gray-900 space-y-1">
+                                        <div>{wifiLabel}</div>
                                     </div>
                                 </div>
                             </div>

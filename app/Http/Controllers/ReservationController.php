@@ -135,6 +135,8 @@ class ReservationController extends Controller
         return Reservation::where('status', 'approved')
             ->select([
                 'id', 'status', 'activity_event', 'date_of_use', 'inclusive_time_start', 'inclusive_time_end', 'category_id',
+                'wifi_preference',
+                'pax_count',
                 'hrdc_hall', 'av_studio', 'bleacher', 'alba_hall', 'student_center_mini_theater',
                 'cte_training_hall_2_or_3', 'admin_building_2nd_floor', 'multi_purpose_hall_3f',
                 'hum_av_theater', 'dance_studio_hall_3f', 'cme_gym', 'classroom_specify',
@@ -148,10 +150,12 @@ class ReservationController extends Controller
         $validated = $request->validate([
             'activity_event' => 'required|string',
             'requesting_party' => 'required|string',
+            'pax_count' => 'nullable|integer|min:0',
             'date_of_use' => 'required|date|after_or_equal:today',
             'inclusive_time_start' => 'required|date_format:H:i',
             'inclusive_time_end' => 'required|date_format:H:i',
             'category_id' => 'required|exists:categories,id',
+            'wifi_preference' => 'nullable|in:wifi,no_wifi',
             // Add other validations as needed
         ]);
 
@@ -238,6 +242,12 @@ class ReservationController extends Controller
         }
         if ($request->has('date_of_use')) {
             $rules['date_of_use'] = 'required|date|after_or_equal:today';
+        }
+        if ($request->has('pax_count')) {
+            $rules['pax_count'] = 'nullable|integer|min:0';
+        }
+        if ($request->has('wifi_preference')) {
+            $rules['wifi_preference'] = 'nullable|in:wifi,no_wifi';
         }
         if (!empty($rules)) {
             $request->validate($rules);
@@ -350,6 +360,7 @@ class ReservationController extends Controller
             'or_number' => 'nullable|string',
             'amount' => 'nullable|string',
             'or_date' => 'nullable|string',
+            'pax_count' => 'nullable|integer|min:0',
             'venue_name' => 'nullable|string',
             'venue_key' => 'nullable|string',
             'selected_audio' => 'array',
@@ -358,6 +369,7 @@ class ReservationController extends Controller
             'audio_details' => 'array',
             'video_details' => 'array',
             'lighting_details' => 'array',
+            'wifi_preference' => 'nullable|in:wifi,no_wifi',
         ]);
 
         try {

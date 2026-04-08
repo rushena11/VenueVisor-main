@@ -96,6 +96,10 @@ class ReservationPdfService
         $orNumber    = e($data['or_number'] ?? '');
         $amount      = e($data['amount'] ?? '');
         $orDate      = e($formatDateLong($data['or_date'] ?? ''));
+        $cteBldgRoom = e($data['cte_building_room'] ?? '');
+        $classroomSpec = e($data['classroom_specify'] ?? '');
+        $laboratorySpec = e($data['laboratory_room_specify'] ?? '');
+        $othersSpec = e($data['others_venue_specify'] ?? '');
         
         $venueName   = strtolower($data['venue_name'] ?? '');
         $venueKey    = strtolower($data['venue_key'] ?? '');
@@ -226,6 +230,16 @@ HTML;
             throw new \Exception('Failed to load the uploaded font: ' . str_replace('\\', '/', $arialBoldPath));
         }
 
+        $cteRow = '';
+        if ($isSelected('CTE Training Hall')) {
+            $cteRow = <<<HTML
+                <tr>
+                  <td width="28%" style="white-space:nowrap;"><font face="{$arialFont}" size="10">CTE Bldg/Room:</font></td>
+                  <td width="72%" style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="10">{$cteBldgRoom}</font></td>
+                </tr>
+HTML;
+        }
+
         // 4. The HTML Template (One Copy)
         // Using HEREDOC for easier editing. You can directly edit the HTML/CSS below.
         $htmlOneCopy = <<<HTML
@@ -307,6 +321,7 @@ HTML;
                   <td width="28%" style="white-space:nowrap;"><font face="{$arialFont}" size="10">Requesting Party:</font></td>
                   <td width="72%" style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="10">{$party}</font></td>
                 </tr>
+                {$cteRow}
               </table>
             </td>
             <td width="40%" valign="top">
@@ -352,11 +367,11 @@ HTML;
             </td>
             <td width="37%" valign="top">
               (<span class="tick">{$check('Classroom')}</span>) Classroom
-              <span style="display:inline-block; border-bottom:1px solid #000; min-width:70px;">&nbsp;</span>
+              <span style="display:inline-block; border-bottom:1px solid #000; min-width:70px;">{$classroomSpec}&nbsp;</span>
               (specify)
               <br/>
               (<span class="tick">{$check('Laboratory Room')}</span>) Laboratory Room
-              <span style="display:inline-block; border-bottom:1px solid #000; min-width:55px;">&nbsp;</span>
+              <span style="display:inline-block; border-bottom:1px solid #000; min-width:55px;">{$laboratorySpec}&nbsp;</span>
               (specify)
               <br/>
               (<span class="tick">{$check('Library Grounds')}</span>) Library Grounds
@@ -364,7 +379,7 @@ HTML;
               (<span class="tick">{$check('ORC Quadrangle')}</span>) ORC Quadrangle/Stage
               <br/>
               (<span class="tick">{$check('Others')}</span>) Others
-              <span style="display:inline-block; border-bottom:1px solid #000; min-width:85px;">&nbsp;</span>
+              <span style="display:inline-block; border-bottom:1px solid #000; min-width:85px;">{$othersSpec}&nbsp;</span>
               (specify)
             </td>
           </tr>
@@ -551,6 +566,10 @@ HTML;
         $orNumber = $clean($data['or_number'] ?? '');
         $amount = $clean($data['amount'] ?? '');
         $orDate = $clean($formatDateLong($data['or_date'] ?? ''));
+        $cteBldgRoom = $clean($data['cte_building_room'] ?? '');
+        $classroomSpec = $clean($data['classroom_specify'] ?? '');
+        $laboratorySpec = $clean($data['laboratory_room_specify'] ?? '');
+        $othersSpec = $clean($data['others_venue_specify'] ?? '');
 
         $venueName = strtolower($clean($data['venue_name'] ?? ''));
         $venueKey = strtolower($clean($data['venue_key'] ?? ''));
@@ -632,53 +651,92 @@ HTML;
             'Others' => [0.600, 0.462],
         ];
 
-        for ($copyIndex = 0; $copyIndex < $copies; $copyIndex++) {
-            $offsetY = $copyIndex * $copyH;
+        $copyShiftXByCopy = [
+            0 => 0.0,
+            1 => 0.0,
+        ];
+        $copyShiftYByCopy = [
+            0 => 0.0,
+            1 => 0.0,
+        ];
 
-            if ($debug) {
-                $drawDebugGrid($offsetY);
-            }
+        $mainFieldShiftXByCopy = [
+            0 => [
+                'activity_event' => -20.0,
+                'requesting_party' => -14.0,
+                'date_of_use' => -30.0,
+                'inclusive_time' => -25.0,
+            ],
+            1 => [
+                'activity_event' => -20.0,
+                'requesting_party' => -14.0,
+                'date_of_use' => -30.0,
+                'inclusive_time' => -25.0,
+            ],
+        ];
+        $mainFieldShiftYByCopy = [
+            0 => [
+                'activity_event' => 1.0,
+                'requesting_party' => -1.0,
+                'date_of_use' => 1.0,
+                'inclusive_time' => -1.0,
+            ],
+            1 => [
+                'activity_event' => 1.0,
+                'requesting_party' => -1.0,
+                'date_of_use' => 1.0,
+                'inclusive_time' => -1.0,
+            ],
+        ];
 
-            $write = function (float $x, float $y, string $text, float $w, string $align = 'L', float $size = 10.0, string $style = '') use ($pdf, $offsetY) {
-                $t = trim($text);
-                if ($t === '') return;
-                $pdf->SetFont('helvetica', $style, $size);
-                $pdf->SetXY($x, $offsetY + $y);
-                $pdf->MultiCell($w, 0, $t, 0, $align, false, 1);
-            };
-
-            $fieldPadX = max(0.8, $pageW * 0.004);
-            $fieldPadY = 0.0;
-            $fieldH = max(3.6, $copyH * 0.026);
-            $writeField = function (float $x, float $y, string $text, float $w, string $align = 'L', float $size = 10.0, string $style = '') use ($pdf, $offsetY, $fieldPadY, $fieldH) {
-                $t = trim($text);
-                if ($t === '') return;
-                $pdf->SetFont('helvetica', $style, $size);
-                $pdf->SetXY($x, $offsetY + $y + $fieldPadY);
-                $pdf->Cell($w, $fieldH, $t, 0, 0, $align, false, '', 0, false, 'T', 'B');
-            };
-
-            $venueTickShiftXDefault = 0.0 ;
-            $venueTickShiftXByVenue = [
+        $venueTickShiftXDefaultByCopy = [
+            0 => 0.0,
+            1 => 0.0,
+        ];
+        $venueTickShiftXByVenueByCopy = [
+            0 => [
                 'HRDC Hall' => -9.4,
-                'AV Studio' => -23.5,
-                'Bleacher' => -45.4,
-                'Alba Hall' => -71.5,
-                'Student Center Mini-Theater' => 0.0,
-                'CTE Training Hall' => 0.0,
-                'Admin Ballroom 2F' => 0.0,
-                'Multi-Purpose Hall 3F' => -49.8,
-                'Hum. AV Theater' => 0.0,
-                'Dance Studio' => -49.6,
-                'CME Gym' => 0.0,
-                'Classroom' => -17.8,
-                'Laboratory Room' => -17.8,
-                'Library Grounds' => -17.8,
-                'ORC Quadrangle' => -17.8,
-                'Others' => -17.8,
-            ];
-            $venueTickShiftYDefault = 0.4;
-            $venueTickShiftYByVenue = [
+                'AV Studio' => -32.8,
+                'Bleacher' => -55.3,
+                'Alba Hall' => -80.5,
+                'Student Center Mini-Theater' => -9.5,
+                'CTE Training Hall' => -9.5,
+                'Admin Ballroom 2F' => -9.5,
+                'Multi-Purpose Hall 3F' => -58.9,
+                'Hum. AV Theater' => -9.5,
+                'Dance Studio' => -58.9,
+                'CME Gym' => -9.5,
+                'Classroom' => -27.2,
+                'Laboratory Room' => -27.2,
+                'Library Grounds' => -27.2,
+                'ORC Quadrangle' => -27.2,
+                'Others' => -27.2,
+            ],
+            1 => [
+                'HRDC Hall' => -9.4,
+                'AV Studio' => -32.8,
+                'Bleacher' => -55.3,
+                'Alba Hall' => -80.5,
+                'Student Center Mini-Theater' => -9.5,
+                'CTE Training Hall' => -9.5,
+                'Admin Ballroom 2F' => -9.5,
+                'Multi-Purpose Hall 3F' => -58.9,
+                'Hum. AV Theater' => -9.5,
+                'Dance Studio' => -58.9,
+                'CME Gym' => -9.5,
+                'Classroom' => -27.2,
+                'Laboratory Room' => -27.2,
+                'Library Grounds' => -27.2,
+                'ORC Quadrangle' => -27.2,
+                'Others' => -27.2,
+            ],
+        ];
+        $venueTickShiftYDefaultByCopy = [
+            0 => 0.4,
+            1 => 0.4,
+        ];
+        $venueTickShiftYByVenueByCopy = [
+            0 => [
                 'HRDC Hall' => 0.0,
                 'AV Studio' => 0.0,
                 'Bleacher' => 0.0,
@@ -695,12 +753,175 @@ HTML;
                 'Library Grounds' => -1.0,
                 'ORC Quadrangle' => -2.0,
                 'Others' => -3.0,
-            ];
+            ],
+            1 => [
+                'HRDC Hall' => 1.0,
+                'AV Studio' => 0.7,
+                'Bleacher' => 0.7,
+                'Alba Hall' => 0.7,
+                'Student Center Mini-Theater' => 0.5,
+                'CTE Training Hall' => -0.9,
+                'Admin Ballroom 2F' => -1.8,
+                'Multi-Purpose Hall 3F' => -1.5,
+                'Hum. AV Theater' => -2.5,
+                'Dance Studio' => -2.7,
+                'CME Gym' => -3.9,
+                'Classroom' => 1.0,
+                'Laboratory Room' => 0.3,
+                'Library Grounds' => -0.9,
+                'ORC Quadrangle' => -1.9,
+                'Others' => -2.9,
+            ],
+        ];
+
+        $avTickShiftXDefaultByCopy = [
+            0 => 0.0,
+            1 => 0.0,
+        ];
+        $avTickShiftYDefaultByCopy = [
+            0 => 0.0,
+            1 => 0.0,
+        ];
+        $avTickShiftXByGroupByCopy = [
+            0 => [
+                'audio' => ['Amplifier' => -10.1, 'Speaker' => -10.1, 'Microphone' => -10.1, 'Others' => -10.1],
+                'video' => ['Video Showing' => -5.1, 'Video Editing' => -5.1, 'Video Coverage' => -5.1, 'Others' => -5.1],
+                'lighting' => ['Follow Spot' => 5.1, 'House Light' => 5.0, 'Electric Fans' => 5.0, 'Others' => 5.0],
+            ],
+            1 => [
+                'audio' => ['Amplifier' => -10.1, 'Speaker' => -10.1, 'Microphone' => -10.1, 'Others' => -10.1],
+                'video' => ['Video Showing' => -5.1, 'Video Editing' => -5.1, 'Video Coverage' => -5.1, 'Others' => -5.1],
+                'lighting' => ['Follow Spot' => 5.1, 'House Light' => 5.0, 'Electric Fans' => 5.0, 'Others' => 5.0],
+            ],
+        ];
+        $avTickShiftYByGroupByCopy = [
+            0 => [
+                'audio' => ['Amplifier' => -2.1, 'Speaker' => -2.1, 'Microphone' => -2.4, 'Others' => -3.0],
+                'video' => ['Video Showing' => -2.1, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
+                'lighting' => ['Follow Spot' => -2.1, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
+            ],
+            1 => [
+                'audio' => ['Amplifier' => -1.5, 'Speaker' => -1.6, 'Microphone' => -2.4, 'Others' => -3.0],
+                'video' => ['Video Showing' => -1.5, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
+                'lighting' => ['Follow Spot' => -1.5, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
+            ],
+        ];
+
+        $avQtyShiftXDefaultByCopy = [
+            0 => 0.0,
+            1 => 0.0,
+        ];
+        $avQtyShiftYDefaultByCopy = [
+            0 => 0.0,
+            1 => 0.0,
+        ];
+        $avQtyShiftXByGroupByCopy = [
+            0 => [
+                'audio' => ['Amplifier' => -7.1, 'Speaker' => -7.1, 'Microphone' => -7.1, 'Others' => -7.1],
+                'video' => ['Video Showing' => 1.0, 'Video Editing' => 1.0, 'Video Coverage' => 1.0, 'Others' => 1.0],
+                'lighting' => ['Follow Spot' => 7.0, 'House Light' => 7.0, 'Electric Fans' => 7.0, 'Others' => 7.0],
+            ],
+            1 => [
+                'audio' => ['Amplifier' => -7.1, 'Speaker' => -7.1, 'Microphone' => -7.1, 'Others' => -7.1],
+                'video' => ['Video Showing' => 1.0, 'Video Editing' => 1.0, 'Video Coverage' => 1.0, 'Others' => 1.0],
+                'lighting' => ['Follow Spot' => 7.0, 'House Light' => 7.0, 'Electric Fans' => 7.0, 'Others' => 7.0],
+            ],
+        ];
+        $avQtyShiftYByGroupByCopy = [
+            0 => [
+                'audio' => ['Amplifier' => -2.1, 'Speaker' => -2.1, 'Microphone' => -2.4, 'Others' => -3.0],
+                'video' => ['Video Showing' => -2.1, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
+                'lighting' => ['Follow Spot' => -2.1, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
+            ],
+            1 => [
+                'audio' => ['Amplifier' => -1.4, 'Speaker' => -2.1, 'Microphone' => -2.4, 'Others' => -3.0],
+                'video' => ['Video Showing' => -1.6, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
+                'lighting' => ['Follow Spot' => -1.6, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
+            ],
+        ];
+
+        $avRemarksShiftXDefaultByCopy = [
+            0 => 0.0,
+            1 => 0.0,
+        ];
+        $avRemarksShiftYDefaultByCopy = [
+            0 => 0.0,
+            1 => 0.0,
+        ];
+        $avRemarksShiftXByGroupByCopy = [
+            0 => [
+                'audio' => ['Amplifier' => -9.5, 'Speaker' => -9.5, 'Microphone' => -9.5, 'Others' => -9.5],
+                'video' => ['Video Showing' => -1.0, 'Video Editing' => -1.0, 'Video Coverage' => -1.0, 'Others' => -1.0],
+                'lighting' => ['Follow Spot' => 6.0, 'House Light' => 6.0, 'Electric Fans' => 6.0, 'Others' => 6.0],
+            ],
+            1 => [
+                'audio' => ['Amplifier' => -9.5, 'Speaker' => -9.5, 'Microphone' => -9.5, 'Others' => -9.5],
+                'video' => ['Video Showing' => -1.0, 'Video Editing' => -1.0, 'Video Coverage' => -1.0, 'Others' => -1.0],
+                'lighting' => ['Follow Spot' => 6.0, 'House Light' => 6.0, 'Electric Fans' => 6.0, 'Others' => 6.0],
+            ],
+        ];
+        $avRemarksShiftYByGroupByCopy = [
+            0 => [
+                'audio' => ['Amplifier' => -2.1, 'Speaker' => -2.1, 'Microphone' => -2.4, 'Others' => -3.0],
+                'video' => ['Video Showing' => -2.1, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
+                'lighting' => ['Follow Spot' => -2.1, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
+            ],
+            1 => [
+                'audio' => ['Amplifier' => -2.1, 'Speaker' => -2.1, 'Microphone' => -2.4, 'Others' => -3.0],
+                'video' => ['Video Showing' => -1.6, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
+                'lighting' => ['Follow Spot' => -1.6, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
+            ],
+        ];
+
+        $signatureLayoutByCopy = [
+            0 => ['xRatio' => 0.03, 'wRatio' => 0.33, 'lineYRatio' => 0.89, 'h' => 5.5],
+            1 => ['xRatio' => 0.03, 'wRatio' => 0.33, 'lineYRatio' => 0.89, 'h' => 5.5],
+        ];
+        $requestedByShiftXByCopy = [
+            0 => 0.0,
+            1 => 0.0,
+        ];
+        $requestedByShiftYByCopy = [
+            0 => 0.0,
+            1 => 0.0,
+        ];
+
+        for ($copyIndex = 0; $copyIndex < $copies; $copyIndex++) {
+            $offsetX = (float) ($copyShiftXByCopy[$copyIndex] ?? 0.0);
+            $offsetY = ($copyIndex * $copyH) + (float) ($copyShiftYByCopy[$copyIndex] ?? 0.0);
+
+            if ($debug) {
+                $drawDebugGrid($offsetY);
+            }
+
+            $write = function (float $x, float $y, string $text, float $w, string $align = 'L', float $size = 10.0, string $style = '') use ($pdf, $offsetX, $offsetY) {
+                $t = trim($text);
+                if ($t === '') return;
+                $pdf->SetFont('helvetica', $style, $size);
+                $pdf->SetXY($offsetX + $x, $offsetY + $y);
+                $pdf->MultiCell($w, 0, $t, 0, $align, false, 1);
+            };
+
+            $fieldPadX = max(0.8, $pageW * 0.004);
+            $fieldPadY = 0.0;
+            $fieldH = max(3.6, $copyH * 0.026);
+            $writeField = function (float $x, float $y, string $text, float $w, string $align = 'L', float $size = 10.0, string $style = '') use ($pdf, $offsetX, $offsetY, $fieldPadY, $fieldH) {
+                $t = trim($text);
+                if ($t === '') return;
+                $pdf->SetFont('helvetica', $style, $size);
+                $pdf->SetXY($offsetX + $x, $offsetY + $y + $fieldPadY);
+                $pdf->Cell($w, $fieldH, $t, 0, 0, $align, false, '', 0, false, 'T', 'B');
+            };
+
+            $venueTickShiftXDefault = (float) ($venueTickShiftXDefaultByCopy[$copyIndex] ?? $venueTickShiftXDefaultByCopy[0] ?? 0.0);
+            $venueTickShiftXByVenue = $venueTickShiftXByVenueByCopy[$copyIndex] ?? $venueTickShiftXByVenueByCopy[0] ?? [];
+            $venueTickShiftYDefault = (float) ($venueTickShiftYDefaultByCopy[$copyIndex] ?? $venueTickShiftYDefaultByCopy[0] ?? 0.0);
+            $venueTickShiftYByVenue = $venueTickShiftYByVenueByCopy[$copyIndex] ?? $venueTickShiftYByVenueByCopy[0] ?? [];
             $venueTickBoxW = 3.6;
             $venueTickBoxH = 3.6;
-            $tick = function (float $x, float $y, float $boxW, float $boxH, float $size = 8.6) use ($pdf, $offsetY) {
+            $tick = function (float $x, float $y, float $boxW, float $boxH, float $size = 8.6) use ($pdf, $offsetX, $offsetY) {
                 $pdf->SetFont('zapfdingbats', '', $size);
-                $pdf->SetXY($x, $offsetY + $y);
+                $pdf->SetXY($offsetX + $x, $offsetY + $y);
                 $pdf->Cell($boxW, $boxH, '4', 0, 0, 'C', false, '', 0, false, 'C', 'M');
                 $pdf->SetFont('helvetica', '', 10);
             };
@@ -721,23 +942,26 @@ HTML;
             $mainY = $copyH * 0.215;
             $mainGap = $copyH * 0.043;
 
-            $mainFieldShiftX = [
-                'activity_event' => -20.0,
-                'requesting_party' => -14.0,
-                'date_of_use' => -30.0,
-                'inclusive_time' => -25.0,
-            ];
-            $mainFieldShiftY = [
-                'activity_event' => 1.0,
-                'requesting_party' => -1.0,
-                'date_of_use' => 1.0,
-                'inclusive_time' => -1.0,
-            ];
+            $mainFieldShiftX = $mainFieldShiftXByCopy[$copyIndex] ?? $mainFieldShiftXByCopy[0] ?? [];
+            $mainFieldShiftY = $mainFieldShiftYByCopy[$copyIndex] ?? $mainFieldShiftYByCopy[0] ?? [];
 
             $writeField(($leftX + $fieldPadX) + ($mainFieldShiftX['activity_event'] ?? 0.0), $mainY + ($mainFieldShiftY['activity_event'] ?? 0.0), $activity, $leftW - ($fieldPadX * 2), 'L', 10);
             $writeField(($leftX + $fieldPadX) + ($mainFieldShiftX['requesting_party'] ?? 0.0), ($mainY + $mainGap) + ($mainFieldShiftY['requesting_party'] ?? 0.0), $party, $leftW - ($fieldPadX * 2), 'L', 10);
+            if ($cteBldgRoom !== '') {
+                $write(($leftX + $fieldPadX), ($mainY + ($mainGap * 2.0)), 'CTE Bldg/Room: ' . $cteBldgRoom, $leftW - ($fieldPadX * 2), 'L', 9);
+            }
             $writeField(($rightX + $fieldPadX) + ($mainFieldShiftX['date_of_use'] ?? 0.0), $mainY + ($mainFieldShiftY['date_of_use'] ?? 0.0), $dateOfUse, $rightW - ($fieldPadX * 2), 'L', 10);
             $writeField(($rightX + $fieldPadX) + ($mainFieldShiftX['inclusive_time'] ?? 0.0), ($mainY + $mainGap) + ($mainFieldShiftY['inclusive_time'] ?? 0.0), $time, $rightW - ($fieldPadX * 2), 'L', 10);
+
+            if ($classroomSpec !== '' && $isSelected('Classroom')) {
+                $writeField($pageW * 0.71, ($copyH * 0.345) - 0.3, $classroomSpec, $pageW * 0.25, 'L', 9);
+            }
+            if ($laboratorySpec !== '' && $isSelected('Laboratory Room')) {
+                $writeField($pageW * 0.71, ($copyH * 0.372) - 0.3, $laboratorySpec, $pageW * 0.25, 'L', 9);
+            }
+            if ($othersSpec !== '' && $isSelected('Others')) {
+                $writeField($pageW * 0.71, ($copyH * 0.462) - 0.3, $othersSpec, $pageW * 0.25, 'L', 9);
+            }
 
             foreach ($venueTickPositions as $label => $pos) {
                 if ($isSelected($label)) {
@@ -752,46 +976,22 @@ HTML;
                 }
             }
 
-            $avTickShiftXDefault = 0.0;
-            $avTickShiftYDefault = 0.0;
-            $avTickShiftXByGroup = [
-                'audio' => ['Amplifier' => -10.1, 'Speaker' => -10.1, 'Microphone' => -10.1, 'Others' => -10.1],
-                'video' => ['Video Showing' => -5.1, 'Video Editing' => -5.1, 'Video Coverage' => -5.1, 'Others' => -5.1],
-                'lighting' => ['Follow Spot' => 5.1, 'House Light' => 5.0, 'Electric Fans' => 5.0, 'Others' => 5.0],
-            ];
-            $avTickShiftYByGroup = [
-                'audio' => ['Amplifier' => -2.1, 'Speaker' => -2.1, 'Microphone' => -2.4, 'Others' => -3.0],
-                'video' => ['Video Showing' => -2.1, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
-                'lighting' => ['Follow Spot' => -2.1, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
-            ];
+            $avTickShiftXDefault = (float) ($avTickShiftXDefaultByCopy[$copyIndex] ?? $avTickShiftXDefaultByCopy[0] ?? 0.0);
+            $avTickShiftYDefault = (float) ($avTickShiftYDefaultByCopy[$copyIndex] ?? $avTickShiftYDefaultByCopy[0] ?? 0.0);
+            $avTickShiftXByGroup = $avTickShiftXByGroupByCopy[$copyIndex] ?? $avTickShiftXByGroupByCopy[0] ?? [];
+            $avTickShiftYByGroup = $avTickShiftYByGroupByCopy[$copyIndex] ?? $avTickShiftYByGroupByCopy[0] ?? [];
 
-            $avQtyShiftXDefault = 0.0;
-            $avQtyShiftYDefault = 0.0;
-            $avQtyShiftXByGroup = [
-                'audio' => ['Amplifier' => -7.1, 'Speaker' => -7.1, 'Microphone' => -7.1, 'Others' => -7.1],
-                'video' => ['Video Showing' => 1.0, 'Video Editing' => 1.0, 'Video Coverage' => 1.0, 'Others' => 1.0],
-                'lighting' => ['Follow Spot' => 7.0, 'House Light' => 7.0, 'Electric Fans' => 7.0, 'Others' => 7.0],
-            ];
-            $avQtyShiftYByGroup = [
-                'audio' => ['Amplifier' => -2.1, 'Speaker' => -2.1, 'Microphone' => -2.4, 'Others' => -3.0],
-                'video' => ['Video Showing' => -2.1, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
-                'lighting' => ['Follow Spot' => -2.1, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
-            ];
+            $avQtyShiftXDefault = (float) ($avQtyShiftXDefaultByCopy[$copyIndex] ?? $avQtyShiftXDefaultByCopy[0] ?? 0.0);
+            $avQtyShiftYDefault = (float) ($avQtyShiftYDefaultByCopy[$copyIndex] ?? $avQtyShiftYDefaultByCopy[0] ?? 0.0);
+            $avQtyShiftXByGroup = $avQtyShiftXByGroupByCopy[$copyIndex] ?? $avQtyShiftXByGroupByCopy[0] ?? [];
+            $avQtyShiftYByGroup = $avQtyShiftYByGroupByCopy[$copyIndex] ?? $avQtyShiftYByGroupByCopy[0] ?? [];
 
-            $avRemarksShiftXDefault = 0.0;
-            $avRemarksShiftYDefault = 0.0;
-            $avRemarksShiftXByGroup = [
-                'audio' => ['Amplifier' => -9.5, 'Speaker' => -9.5, 'Microphone' => -9.5, 'Others' => -9.5],
-                'video' => ['Video Showing' => -1.0, 'Video Editing' => -1.0, 'Video Coverage' => -1.0, 'Others' => -1.0],
-                'lighting' => ['Follow Spot' => 6.0, 'House Light' => 6.0, 'Electric Fans' => 6.0, 'Others' => 6.0],
-            ];
-            $avRemarksShiftYByGroup = [
-                'audio' => ['Amplifier' => -2.1, 'Speaker' => -2.1, 'Microphone' => -2.4, 'Others' => -3.0],
-                'video' => ['Video Showing' => -2.1, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
-                'lighting' => ['Follow Spot' => -2.1, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
-            ];
+            $avRemarksShiftXDefault = (float) ($avRemarksShiftXDefaultByCopy[$copyIndex] ?? $avRemarksShiftXDefaultByCopy[0] ?? 0.0);
+            $avRemarksShiftYDefault = (float) ($avRemarksShiftYDefaultByCopy[$copyIndex] ?? $avRemarksShiftYDefaultByCopy[0] ?? 0.0);
+            $avRemarksShiftXByGroup = $avRemarksShiftXByGroupByCopy[$copyIndex] ?? $avRemarksShiftXByGroupByCopy[0] ?? [];
+            $avRemarksShiftYByGroup = $avRemarksShiftYByGroupByCopy[$copyIndex] ?? $avRemarksShiftYByGroupByCopy[0] ?? [];
 
-            $writeAvTable = function (float $baseX, float $yStart, float $rowGap, array $items, array $selected, array $details, string $groupKey) use ($pdf, $offsetY, $avTickShiftXDefault, $avTickShiftYDefault, $avTickShiftXByGroup, $avTickShiftYByGroup, $avQtyShiftXDefault, $avQtyShiftYDefault, $avQtyShiftXByGroup, $avQtyShiftYByGroup, $avRemarksShiftXDefault, $avRemarksShiftYDefault, $avRemarksShiftXByGroup, $avRemarksShiftYByGroup) {
+            $writeAvTable = function (float $baseX, float $yStart, float $rowGap, array $items, array $selected, array $details, string $groupKey) use ($pdf, $offsetX, $offsetY, $avTickShiftXDefault, $avTickShiftYDefault, $avTickShiftXByGroup, $avTickShiftYByGroup, $avQtyShiftXDefault, $avQtyShiftYDefault, $avQtyShiftXByGroup, $avQtyShiftYByGroup, $avRemarksShiftXDefault, $avRemarksShiftYDefault, $avRemarksShiftXByGroup, $avRemarksShiftYByGroup) {
                 $tickX = $baseX - 0.6;
                 $qtyX = $baseX + 21.0;
                 $qtyW = 12.0;
@@ -805,7 +1005,7 @@ HTML;
                         $shiftX = $avTickShiftXDefault + (($avTickShiftXByGroup[$groupKey][$item] ?? 0.0));
                         $shiftY = $avTickShiftYDefault + (($avTickShiftYByGroup[$groupKey][$item] ?? 0.0));
                         $pdf->SetFont('zapfdingbats', '', 7.5);
-                        $pdf->Text($tickX + 0.15 + $shiftX, $offsetY + $rowY + 0.55 + $shiftY, '4');
+                        $pdf->Text($offsetX + $tickX + 0.15 + $shiftX, $offsetY + $rowY + 0.55 + $shiftY, '4');
                     }
 
                     if (!$selectedHere) {
@@ -827,14 +1027,14 @@ HTML;
                         $qtyShiftX = $avQtyShiftXDefault + (($avQtyShiftXByGroup[$groupKey][$item] ?? 0.0));
                         $qtyShiftY = $avQtyShiftYDefault + (($avQtyShiftYByGroup[$groupKey][$item] ?? 0.0));
                         $pdf->SetFont('helvetica', '', 8.5);
-                        $pdf->SetXY($qtyX + $qtyShiftX, $offsetY + $rowY - 0.2 + $qtyShiftY);
+                        $pdf->SetXY($offsetX + $qtyX + $qtyShiftX, $offsetY + $rowY - 0.2 + $qtyShiftY);
                         $pdf->Cell($qtyW, 4, $qty, 0, 0, 'C', false, '', 0, false, 'T', 'M');
                     }
                     if ($remarks !== '') {
                         $remarksShiftX = $avRemarksShiftXDefault + (($avRemarksShiftXByGroup[$groupKey][$item] ?? 0.0));
                         $remarksShiftY = $avRemarksShiftYDefault + (($avRemarksShiftYByGroup[$groupKey][$item] ?? 0.0));
                         $pdf->SetFont('helvetica', '', 8.5);
-                        $pdf->SetXY($remarksX + $remarksShiftX, $offsetY + $rowY - 0.2 + $remarksShiftY);
+                        $pdf->SetXY($offsetX + $remarksX + $remarksShiftX, $offsetY + $rowY - 0.2 + $remarksShiftY);
                         $pdf->Cell($remarksW, 4, $remarks, 0, 0, 'L', false, '', 0, false, 'T', 'M');
                     }
                 }
@@ -848,12 +1048,15 @@ HTML;
             $writeAvTable($pageW * 0.38, $avYStart, $avRowGap, ['Video Showing', 'Video Editing', 'Video Coverage', 'Others'], $selectedVideo, $videoDetails, 'video');
             $writeAvTable($pageW * 0.65, $avYStart, $avRowGap, ['Follow Spot', 'House Light', 'Electric Fans', 'Others'], $selectedLighting, $lightingDetails, 'lighting');
 
-            $sigX = $pageW * 0.03;
-            $sigW = $pageW * 0.33;
+            $sigLayout = $signatureLayoutByCopy[$copyIndex] ?? $signatureLayoutByCopy[0] ?? [];
+            $sigX = $pageW * (float) ($sigLayout['xRatio'] ?? 0.03);
+            $sigW = $pageW * (float) ($sigLayout['wRatio'] ?? 0.33);
             $sigText = trim($requestedBy);
             if ($sigText !== '') {
-                $sigLineY = $copyH * 0.89;
-                $sigH = 5.5;
+                $sigLineY = $copyH * (float) ($sigLayout['lineYRatio'] ?? 0.89);
+                $sigH = (float) ($sigLayout['h'] ?? 5.5);
+                $requestedByShiftX = (float) ($requestedByShiftXByCopy[$copyIndex] ?? $requestedByShiftXByCopy[0] ?? 0.0);
+                $requestedByShiftY = (float) ($requestedByShiftYByCopy[$copyIndex] ?? $requestedByShiftYByCopy[0] ?? 0.0);
                 $fontSize = 10.0;
                 $minFontSize = 7.0;
                 $pdf->SetFont('helvetica', 'B', $fontSize);
@@ -862,7 +1065,7 @@ HTML;
                     $pdf->SetFont('helvetica', 'B', $fontSize);
                 }
 
-                $pdf->SetXY($sigX, $offsetY + $sigLineY - $sigH);
+                $pdf->SetXY($offsetX + $sigX + $requestedByShiftX, $offsetY + $sigLineY - $sigH + $requestedByShiftY);
                 $pdf->Cell($sigW, $sigH, $sigText, 0, 0, 'C', false, '', 0, false, 'T', 'B');
                 $pdf->SetFont('helvetica', '', 10);
             }

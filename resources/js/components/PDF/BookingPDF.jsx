@@ -89,6 +89,10 @@ const BookingPDF = ({
     if (!ll) return false;
     return (vn && (vn.includes(ll) || ll.includes(vn))) || (vk && (vk.includes(ll) || ll.includes(vk)));
   };
+  const showCteBuildingRoom = isVenueSelected("CTE Training Hall");
+  const classroomSpecify = (formData?.classroomSpecify ?? formData?.classroom_specify ?? "").toString();
+  const laboratoryRoomSpecify = (formData?.laboratoryRoomSpecify ?? formData?.laboratory_room_specify ?? "").toString();
+  const othersVenueSpecify = (formData?.othersVenueSpecify ?? formData?.others_venue_specify ?? "").toString();
 
   return (
     <div className="w-[216mm] min-h-[330mm] text-black leading-tight">
@@ -150,6 +154,12 @@ const BookingPDF = ({
             <div className="w-[32%]">Requesting Party:</div>
             <div className="flex-1 border-b border-black">{formData.requestingParty || "\u00A0"}</div>
           </div>
+          {showCteBuildingRoom && (
+            <div className="flex items-end gap-2">
+              <div className="w-[32%]">CTE Bldg/Room:</div>
+              <div className="flex-1 border-b border-black">{formData.cteBuildingRoom || "\u00A0"}</div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-1">
@@ -201,12 +211,12 @@ const BookingPDF = ({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <VenueOption checked={isVenueSelected("Classroom")} label="Classroom" />
-            <span className="inline-block border-b border-black w-[70px] h-[10px]" />
+            <span className="inline-block border-b border-black w-[70px] h-[10px]">{classroomSpecify || "\u00A0"}</span>
             <span>(specify)</span>
           </div>
           <div className="flex items-center gap-2">
             <VenueOption checked={isVenueSelected("Laboratory Room")} label="Laboratory Room" />
-            <span className="inline-block border-b border-black w-[55px] h-[10px]" />
+            <span className="inline-block border-b border-black w-[55px] h-[10px]">{laboratoryRoomSpecify || "\u00A0"}</span>
             <span>(specify)</span>
           </div>
           <div>
@@ -217,7 +227,7 @@ const BookingPDF = ({
           </div>
           <div className="flex items-center gap-2">
             <VenueOption checked={isVenueSelected("Others")} label="Others" />
-            <span className="inline-block border-b border-black w-[85px] h-[10px]" />
+            <span className="inline-block border-b border-black w-[85px] h-[10px]">{othersVenueSpecify || "\u00A0"}</span>
             <span>(specify)</span>
           </div>
         </div>

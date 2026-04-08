@@ -26,6 +26,10 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
     dateOfUse: "", 
     requestingParty: "", 
     requestedBy: "",
+    cteBuildingRoom: "",
+    classroomSpecify: "",
+    laboratoryRoomSpecify: "",
+    othersVenueSpecify: "",
     inclusiveTime: "", 
     paxCount: "",
   };
@@ -55,6 +59,17 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       return "";
     }
   };
+  const isVenueLabelSelected = (label) => {
+    const ll = normalizeKey(label);
+    const vn = normalizeKey(venueName);
+    const vk = normalizeKey(venueKey);
+    if (!ll) return false;
+    return (vn && (vn.includes(ll) || ll.includes(vn))) || (vk && (vk.includes(ll) || ll.includes(vk)));
+  };
+  const isCteTrainingHallSelected = () => isVenueLabelSelected("CTE Training Hall");
+  const isClassroomSelected = () => isVenueLabelSelected("Classroom");
+  const isLaboratoryRoomSelected = () => isVenueLabelSelected("Laboratory Room");
+  const isOthersVenueSelected = () => isVenueLabelSelected("Others");
   const openPrintSection = async () => {
     if (isGeneratingPdf) return;
     const popup = window.open("about:blank", "_blank");
@@ -93,6 +108,15 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
         }
         if (!formData.requestingParty?.trim()) {
           throw new Error("Please enter the Requesting Party.");
+        }
+        if (isClassroomSelected() && !formData.classroomSpecify?.trim()) {
+          throw new Error("Please specify the Classroom.");
+        }
+        if (isLaboratoryRoomSelected() && !formData.laboratoryRoomSpecify?.trim()) {
+          throw new Error("Please specify the Laboratory Room.");
+        }
+        if (isOthersVenueSelected() && !formData.othersVenueSpecify?.trim()) {
+          throw new Error("Please specify the Others venue.");
         }
         const dateOfUse = formData.dateOfUse?.trim() || toDateInputValue(selectedDate);
         if (!dateOfUse) {
@@ -137,6 +161,18 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
           video_details: videoDetails,
           lighting_details: lightingDetails,
         };
+        if (isCteTrainingHallSelected()) {
+          payload.cte_building_room = formData.cteBuildingRoom;
+        }
+        if (isClassroomSelected()) {
+          payload.classroom_specify = formData.classroomSpecify;
+        }
+        if (isLaboratoryRoomSelected()) {
+          payload.laboratory_room_specify = formData.laboratoryRoomSpecify;
+        }
+        if (isOthersVenueSelected()) {
+          payload.others_venue_specify = formData.othersVenueSpecify;
+        }
         const res = await axios.post("/api/reservations/form-pdf", payload, {
           responseType: "blob",
           headers: { Authorization: `Bearer ${token}` },
@@ -214,6 +250,10 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       dateOfUse: reservationToEdit?.date_of_use ? toDateInputValue(reservationToEdit.date_of_use) : "",
       requestingParty: reservationToEdit?.requesting_party || "",
       requestedBy: reservationToEdit?.requested_by || reservationToEdit?.user?.name || "",
+      cteBuildingRoom: "",
+      classroomSpecify: reservationToEdit?.classroom_specify || "",
+      laboratoryRoomSpecify: reservationToEdit?.laboratory_room_specify || "",
+      othersVenueSpecify: reservationToEdit?.others_venue_specify || "",
       inclusiveTime: timeText,
       paxCount: (reservationToEdit?.pax_count ?? '') + '',
     });
@@ -445,6 +485,18 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
         if (onNotify) onNotify("Please enter the Requesting Party.", 'warning');
         return;
       }
+      if (isClassroomSelected() && !formData.classroomSpecify?.trim()) {
+        if (onNotify) onNotify("Please specify the Classroom.", 'warning');
+        return;
+      }
+      if (isLaboratoryRoomSelected() && !formData.laboratoryRoomSpecify?.trim()) {
+        if (onNotify) onNotify("Please specify the Laboratory Room.", 'warning');
+        return;
+      }
+      if (isOthersVenueSelected() && !formData.othersVenueSpecify?.trim()) {
+        if (onNotify) onNotify("Please specify the Others venue.", 'warning');
+        return;
+      }
       const dateOfUse = formData.dateOfUse?.trim() || toDateInputValue(selectedDate);
       if (!dateOfUse) {
         if (onNotify) onNotify("Please select the Date of Use.", 'warning');
@@ -546,7 +598,15 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
         lighting_others_remarks: lightingDetails["Others"]?.remarks || "",
       };
       if (venueKey) {
-        payload[venueKey] = true;
+        if (venueKey === "classroom_specify") {
+          payload.classroom_specify = formData.classroomSpecify?.trim() || "";
+        } else if (venueKey === "laboratory_room_specify") {
+          payload.laboratory_room_specify = formData.laboratoryRoomSpecify?.trim() || "";
+        } else if (venueKey === "others_venue_specify") {
+          payload.others_venue_specify = formData.othersVenueSpecify?.trim() || "";
+        } else {
+          payload[venueKey] = true;
+        }
       }
       const response = isEditing
         ? await axios.put(`/api/reservations/${reservationToEdit.id}`, payload, { headers: { Authorization: `Bearer ${token}` } })
@@ -554,7 +614,13 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       if (onNotify) onNotify(isEditing ? "Reservation updated successfully!" : "Reservation submitted successfully!", 'success');
       if (onSubmitted) {
         const augmented = { ...(response?.data || {}), pax_count: formData.paxCount };
-        if (venueKey && !augmented[venueKey]) {
+        if (venueKey === "classroom_specify") {
+          augmented.classroom_specify = formData.classroomSpecify?.trim() || augmented.classroom_specify;
+        } else if (venueKey === "laboratory_room_specify") {
+          augmented.laboratory_room_specify = formData.laboratoryRoomSpecify?.trim() || augmented.laboratory_room_specify;
+        } else if (venueKey === "others_venue_specify") {
+          augmented.others_venue_specify = formData.othersVenueSpecify?.trim() || augmented.others_venue_specify;
+        } else if (venueKey && !augmented[venueKey]) {
           augmented[venueKey] = true;
         }
         onSubmitted(augmented);
@@ -637,6 +703,54 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
             </div>
           </div>
           <div className="space-y-3">
+            {isCteTrainingHallSelected() && (
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">CTE BLDG / ROOM NO.</label>
+                <input
+                  name="cteBuildingRoom"
+                  value={formData.cteBuildingRoom}
+                  onChange={handleChange}
+                  placeholder="e.g. CTE Bldg, Room 203"
+                  className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+                />
+              </div>
+            )}
+            {isClassroomSelected() && (
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">CLASSROOM (PLEASE SPECIFY)</label>
+                <input
+                  name="classroomSpecify"
+                  value={formData.classroomSpecify}
+                  onChange={handleChange}
+                  placeholder="e.g. CTE Building, Room 101"
+                  className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+                />
+              </div>
+            )}
+            {isLaboratoryRoomSelected() && (
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">LABORATORY ROOM (PLEASE SPECIFY)</label>
+                <input
+                  name="laboratoryRoomSpecify"
+                  value={formData.laboratoryRoomSpecify}
+                  onChange={handleChange}
+                  placeholder="e.g. Science Lab 2"
+                  className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+                />
+              </div>
+            )}
+            {isOthersVenueSelected() && (
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">OTHERS (PLEASE SPECIFY)</label>
+                <input
+                  name="othersVenueSpecify"
+                  value={formData.othersVenueSpecify}
+                  onChange={handleChange}
+                  placeholder="e.g. LNU Grounds (Main Gate Area)"
+                  className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">REQUESTED BY</label>
               <input

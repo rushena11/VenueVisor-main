@@ -50,12 +50,49 @@ class ReservationPdfService
             }
         };
 
+        $parseTimePH = function ($value) {
+            $s = is_string($value) ? trim($value) : '';
+            if ($s === '') return null;
+            $s = strtolower($s);
+            $s = preg_replace('/\s+/', ' ', $s) ?? $s;
+            $s = str_replace(['–', '—'], '-', $s);
+            $s = trim($s);
+            $s = preg_replace('/[^0-9:apm\s]/', '', $s) ?? $s;
+            $s = trim($s);
+            $tz = new \DateTimeZone('Asia/Manila');
+            foreach (['!H:i', '!H:i:s', '!g:i a', '!g:iA', '!g:i'] as $fmt) {
+                $dt = \DateTime::createFromFormat($fmt, $s, $tz);
+                if ($dt instanceof \DateTime) {
+                    return $dt;
+                }
+            }
+            return null;
+        };
+        $formatInclusiveTimePH = function ($start, $end) use ($parseTimePH) {
+            $s = is_string($start) ? trim($start) : '';
+            $e = is_string($end) ? trim($end) : '';
+            $sDt = $parseTimePH($s);
+            $eDt = $parseTimePH($e);
+            if (!$sDt || !$eDt) {
+                $raw = trim($s) . ' - ' . trim($e);
+                return trim($raw, " \t\n\r\0\x0B-");
+            }
+            $sTime = $sDt->format('g:i');
+            $eTime = $eDt->format('g:i');
+            $sMer = $sDt->format('a');
+            $eMer = $eDt->format('a');
+            if ($sMer === $eMer) {
+                return $sTime . ' - ' . $eTime . ' ' . $eMer;
+            }
+            return $sTime . ' ' . $sMer . ' - ' . $eTime . ' ' . $eMer;
+        };
+
         // 1. Extract and sanitize input data
         $activity    = e($data['activity_event'] ?? '');
         $party       = e($data['requesting_party'] ?? '');
         $requestedBy = e($data['requested_by'] ?? '');
         $dateOfUse   = e($formatDateLong($data['date_of_use'] ?? ''));
-        $time        = e(($data['inclusive_time_start'] ?? '') . ' - ' . ($data['inclusive_time_end'] ?? ''));
+        $time        = e($formatInclusiveTimePH($data['inclusive_time_start'] ?? '', $data['inclusive_time_end'] ?? ''));
         $orNumber    = e($data['or_number'] ?? '');
         $amount      = e($data['amount'] ?? '');
         $orDate      = e($formatDateLong($data['or_date'] ?? ''));
@@ -111,7 +148,21 @@ HTML;
         $videoHtml    = $renderAVTable(['Video Showing','Video Editing','Video Coverage','Others'], $selectedVideo, $videoDetails);
         $lightingHtml = $renderAVTable(['Follow Spot','House Light','Electric Fans','Others'], $selectedLighting, $lightingDetails);
 
-        $logoPath = str_replace('\\', '/', public_path('assets/LNULogo.png'));
+        $logoFilePath = public_path('assets/LNULogo.png');
+        $logoSrc = '';
+        if (is_file($logoFilePath)) {
+            $bin = @file_get_contents($logoFilePath);
+            if ($bin !== false) {
+                $logoSrc = 'data:image/png;base64,' . base64_encode($bin);
+            }
+        }
+        if ($logoSrc === '') {
+            $appUrl = rtrim((string) config('app.url'), '/');
+            if ($appUrl !== '') {
+                $logoSrc = $appUrl . '/assets/LNULogo.png';
+            }
+        }
+        $logoImgHtml = $logoSrc !== '' ? '<img src="' . $logoSrc . '" style="width:23mm; height:22.5mm; margin-top:-1.9mm;" />' : '';
         $tcpdfFontCachePath = storage_path('tcpdf-fonts');
         if (!is_dir($tcpdfFontCachePath)) {
             @mkdir($tcpdfFontCachePath, 0755, true);
@@ -194,7 +245,7 @@ HTML;
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td width="25%" align="left" valign="top" style="padding-top:0mm; padding-left:25.1mm;">
-              <img src="{$logoPath}" style="width:23mm; height:22.5mm; margin-top:-1.9mm;" />
+              {$logoImgHtml}
             </td>
             <td width="50%" align="center" valign="top" style="padding-top:0.5mm;">
               <table width="100%" cellpadding="0" cellspacing="0">
@@ -249,24 +300,24 @@ HTML;
             <td width="60%" valign="top">
               <table width="100%" cellpadding="1" cellspacing="0">
                 <tr>
-                  <td width="28%"><font face="{$arialFont}" size="10">Activity/Event:</font></td>
-                  <td style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="10">{$activity}</font></td>
+                  <td width="28%" style="white-space:nowrap;"><font face="{$arialFont}" size="10">Activity/Event:</font></td>
+                  <td width="72%" style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="10">{$activity}</font></td>
                 </tr>
                 <tr>
-                  <td><font face="{$arialFont}" size="10">Requesting Party:</font></td>
-                  <td style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="10">{$party}</font></td>
+                  <td width="28%" style="white-space:nowrap;"><font face="{$arialFont}" size="10">Requesting Party:</font></td>
+                  <td width="72%" style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="10">{$party}</font></td>
                 </tr>
               </table>
             </td>
             <td width="40%" valign="top">
               <table width="100%" cellpadding="1" cellspacing="0">
                 <tr>
-                  <td width="38%"><font face="{$arialFont}" size="10">Date of Use:</font></td>
-                  <td style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="10">{$dateOfUse}</font></td>
+                  <td width="38%" style="white-space:nowrap;"><font face="{$arialFont}" size="10">Date of Use:</font></td>
+                  <td width="62%" style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="10">{$dateOfUse}</font></td>
                 </tr>
                 <tr>
-                  <td><font face="{$arialFont}" size="10">Inclusive Time:</font></td>
-                  <td style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="10">{$time}</font></td>
+                  <td width="38%" style="white-space:nowrap;"><font face="{$arialFont}" size="10">Inclusive Time:</font></td>
+                  <td width="62%" style="border-bottom:1px solid #000;"><font face="{$arialFont}" size="10">{$time}</font></td>
                 </tr>
               </table>
             </td>
@@ -360,8 +411,11 @@ HTML;
           <tr>
             <td width="32%" valign="top">
               <div style="margin-bottom:8mm;">Requested by:</div>
-              <div style="border-bottom:1px solid #000; height:1px;"></div>
-              <div style="text-align:center; font-weight:bold; margin-top:1px;">{$requestedBy}</div>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" valign="bottom" style="border-bottom:1px solid #000; height:6mm; font-weight:bold;">{$requestedBy}</td>
+                </tr>
+              </table>
               <div style="text-align:center; font-size:8pt;">Requesting Party (Signature Over Printed Name)</div>
             </td>
             <td width="4%"></td>
@@ -452,11 +506,48 @@ HTML;
             return preg_replace('/\s+/', ' ', $s) ?? $s;
         };
 
+        $parseTimePH = function ($value) {
+            $s = is_string($value) ? trim($value) : '';
+            if ($s === '') return null;
+            $s = strtolower($s);
+            $s = preg_replace('/\s+/', ' ', $s) ?? $s;
+            $s = str_replace(['–', '—'], '-', $s);
+            $s = trim($s);
+            $s = preg_replace('/[^0-9:apm\s]/', '', $s) ?? $s;
+            $s = trim($s);
+            $tz = new \DateTimeZone('Asia/Manila');
+            foreach (['!H:i', '!H:i:s', '!g:i a', '!g:iA', '!g:i'] as $fmt) {
+                $dt = \DateTime::createFromFormat($fmt, $s, $tz);
+                if ($dt instanceof \DateTime) {
+                    return $dt;
+                }
+            }
+            return null;
+        };
+        $formatInclusiveTimePH = function ($start, $end) use ($parseTimePH, $clean) {
+            $s = $clean($start);
+            $e = $clean($end);
+            $sDt = $parseTimePH($s);
+            $eDt = $parseTimePH($e);
+            if (!$sDt || !$eDt) {
+                $raw = trim($s) . ' - ' . trim($e);
+                return trim($raw, " \t\n\r\0\x0B-");
+            }
+            $sTime = $sDt->format('g:i');
+            $eTime = $eDt->format('g:i');
+            $sMer = $sDt->format('a');
+            $eMer = $eDt->format('a');
+            if ($sMer === $eMer) {
+                return $sTime . ' - ' . $eTime . ' ' . $eMer;
+            }
+            return $sTime . ' ' . $sMer . ' - ' . $eTime . ' ' . $eMer;
+        };
+
         $activity = $clean($data['activity_event'] ?? '');
         $party = $clean($data['requesting_party'] ?? '');
         $requestedBy = $clean($data['requested_by'] ?? '');
         $dateOfUse = $clean($formatDateLong($data['date_of_use'] ?? ''));
-        $time = $clean(($data['inclusive_time_start'] ?? '') . ' - ' . ($data['inclusive_time_end'] ?? ''));
+        $time = $formatInclusiveTimePH($data['inclusive_time_start'] ?? '', $data['inclusive_time_end'] ?? '');
         $orNumber = $clean($data['or_number'] ?? '');
         $amount = $clean($data['amount'] ?? '');
         $orDate = $clean($formatDateLong($data['or_date'] ?? ''));
@@ -556,9 +647,61 @@ HTML;
                 $pdf->MultiCell($w, 0, $t, 0, $align, false, 1);
             };
 
-            $tick = function (float $x, float $y, float $size = 8.0) use ($pdf, $offsetY) {
+            $fieldPadX = max(0.8, $pageW * 0.004);
+            $fieldPadY = 0.0;
+            $fieldH = max(3.6, $copyH * 0.026);
+            $writeField = function (float $x, float $y, string $text, float $w, string $align = 'L', float $size = 10.0, string $style = '') use ($pdf, $offsetY, $fieldPadY, $fieldH) {
+                $t = trim($text);
+                if ($t === '') return;
+                $pdf->SetFont('helvetica', $style, $size);
+                $pdf->SetXY($x, $offsetY + $y + $fieldPadY);
+                $pdf->Cell($w, $fieldH, $t, 0, 0, $align, false, '', 0, false, 'T', 'B');
+            };
+
+            $venueTickShiftXDefault = 0.0 ;
+            $venueTickShiftXByVenue = [
+                'HRDC Hall' => -9.4,
+                'AV Studio' => -23.5,
+                'Bleacher' => -45.4,
+                'Alba Hall' => -71.5,
+                'Student Center Mini-Theater' => 0.0,
+                'CTE Training Hall' => 0.0,
+                'Admin Ballroom 2F' => 0.0,
+                'Multi-Purpose Hall 3F' => -49.8,
+                'Hum. AV Theater' => 0.0,
+                'Dance Studio' => -49.6,
+                'CME Gym' => 0.0,
+                'Classroom' => -17.8,
+                'Laboratory Room' => -17.8,
+                'Library Grounds' => -17.8,
+                'ORC Quadrangle' => -17.8,
+                'Others' => -17.8,
+            ];
+            $venueTickShiftYDefault = 0.4;
+            $venueTickShiftYByVenue = [
+                'HRDC Hall' => 0.0,
+                'AV Studio' => 0.0,
+                'Bleacher' => 0.0,
+                'Alba Hall' => 0.0,
+                'Student Center Mini-Theater' => -0.4,
+                'CTE Training Hall' => -1.0,
+                'Admin Ballroom 2F' => -2.0,
+                'Multi-Purpose Hall 3F' => -2.5,
+                'Hum. AV Theater' => -3.4,
+                'Dance Studio' => -3.4,
+                'CME Gym' => -4.4,
+                'Classroom' => 0.0,
+                'Laboratory Room' => -0.4,
+                'Library Grounds' => -1.0,
+                'ORC Quadrangle' => -2.0,
+                'Others' => -3.0,
+            ];
+            $venueTickBoxW = 3.6;
+            $venueTickBoxH = 3.6;
+            $tick = function (float $x, float $y, float $boxW, float $boxH, float $size = 8.6) use ($pdf, $offsetY) {
                 $pdf->SetFont('zapfdingbats', '', $size);
-                $pdf->Text($x + 0.15, $offsetY + $y + 0.55, '4');
+                $pdf->SetXY($x, $offsetY + $y);
+                $pdf->Cell($boxW, $boxH, '4', 0, 0, 'C', false, '', 0, false, 'C', 'M');
                 $pdf->SetFont('helvetica', '', 10);
             };
 
@@ -571,25 +714,84 @@ HTML;
             $write($orBoxX, $orTopY + $lineGap, $amount, $orBoxW, 'L', 10);
             $write($orBoxX, $orTopY + ($lineGap * 2), $orDate, $orBoxW, 'L', 10);
 
-            $leftX = $pageW * 0.18;
-            $leftW = $pageW * 0.44;
-            $rightX = $pageW * 0.68;
-            $rightW = $pageW * 0.28;
+            $leftX = $pageW * 0.265;
+            $leftW = $pageW * 0.35;
+            $rightX = $pageW * 0.79;
+            $rightW = $pageW * 0.18;
             $mainY = $copyH * 0.215;
             $mainGap = $copyH * 0.043;
 
-            $write($leftX, $mainY, $activity, $leftW, 'L', 10);
-            $write($leftX, $mainY + $mainGap, $party, $leftW, 'L', 10);
-            $write($rightX, $mainY, $dateOfUse, $rightW, 'L', 10);
-            $write($rightX, $mainY + $mainGap, $time, $rightW, 'L', 10);
+            $mainFieldShiftX = [
+                'activity_event' => -20.0,
+                'requesting_party' => -14.0,
+                'date_of_use' => -30.0,
+                'inclusive_time' => -25.0,
+            ];
+            $mainFieldShiftY = [
+                'activity_event' => 1.0,
+                'requesting_party' => -1.0,
+                'date_of_use' => 1.0,
+                'inclusive_time' => -1.0,
+            ];
+
+            $writeField(($leftX + $fieldPadX) + ($mainFieldShiftX['activity_event'] ?? 0.0), $mainY + ($mainFieldShiftY['activity_event'] ?? 0.0), $activity, $leftW - ($fieldPadX * 2), 'L', 10);
+            $writeField(($leftX + $fieldPadX) + ($mainFieldShiftX['requesting_party'] ?? 0.0), ($mainY + $mainGap) + ($mainFieldShiftY['requesting_party'] ?? 0.0), $party, $leftW - ($fieldPadX * 2), 'L', 10);
+            $writeField(($rightX + $fieldPadX) + ($mainFieldShiftX['date_of_use'] ?? 0.0), $mainY + ($mainFieldShiftY['date_of_use'] ?? 0.0), $dateOfUse, $rightW - ($fieldPadX * 2), 'L', 10);
+            $writeField(($rightX + $fieldPadX) + ($mainFieldShiftX['inclusive_time'] ?? 0.0), ($mainY + $mainGap) + ($mainFieldShiftY['inclusive_time'] ?? 0.0), $time, $rightW - ($fieldPadX * 2), 'L', 10);
 
             foreach ($venueTickPositions as $label => $pos) {
                 if ($isSelected($label)) {
-                    $tick($pageW * $pos[0], $copyH * $pos[1]);
+                    $shiftX = $venueTickShiftXDefault + ($venueTickShiftXByVenue[$label] ?? 0.0);
+                    $shiftY = $venueTickShiftYDefault + ($venueTickShiftYByVenue[$label] ?? 0.0);
+                    $tick(
+                        ($pageW * $pos[0]) + $shiftX,
+                        ($copyH * $pos[1]) + $shiftY,
+                        $venueTickBoxW,
+                        $venueTickBoxH
+                    );
                 }
             }
 
-            $writeAvTable = function (float $baseX, float $yStart, float $rowGap, array $items, array $selected, array $details) use ($pdf, $offsetY) {
+            $avTickShiftXDefault = 0.0;
+            $avTickShiftYDefault = 0.0;
+            $avTickShiftXByGroup = [
+                'audio' => ['Amplifier' => -10.1, 'Speaker' => -10.1, 'Microphone' => -10.1, 'Others' => -10.1],
+                'video' => ['Video Showing' => -5.1, 'Video Editing' => -5.1, 'Video Coverage' => -5.1, 'Others' => -5.1],
+                'lighting' => ['Follow Spot' => 5.1, 'House Light' => 5.0, 'Electric Fans' => 5.0, 'Others' => 5.0],
+            ];
+            $avTickShiftYByGroup = [
+                'audio' => ['Amplifier' => -2.1, 'Speaker' => -2.1, 'Microphone' => -2.4, 'Others' => -3.0],
+                'video' => ['Video Showing' => -2.1, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
+                'lighting' => ['Follow Spot' => -2.1, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
+            ];
+
+            $avQtyShiftXDefault = 0.0;
+            $avQtyShiftYDefault = 0.0;
+            $avQtyShiftXByGroup = [
+                'audio' => ['Amplifier' => -7.1, 'Speaker' => -7.1, 'Microphone' => -7.1, 'Others' => -7.1],
+                'video' => ['Video Showing' => 1.0, 'Video Editing' => 1.0, 'Video Coverage' => 1.0, 'Others' => 1.0],
+                'lighting' => ['Follow Spot' => 7.0, 'House Light' => 7.0, 'Electric Fans' => 7.0, 'Others' => 7.0],
+            ];
+            $avQtyShiftYByGroup = [
+                'audio' => ['Amplifier' => -2.1, 'Speaker' => -2.1, 'Microphone' => -2.4, 'Others' => -3.0],
+                'video' => ['Video Showing' => -2.1, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
+                'lighting' => ['Follow Spot' => -2.1, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
+            ];
+
+            $avRemarksShiftXDefault = 0.0;
+            $avRemarksShiftYDefault = 0.0;
+            $avRemarksShiftXByGroup = [
+                'audio' => ['Amplifier' => -9.5, 'Speaker' => -9.5, 'Microphone' => -9.5, 'Others' => -9.5],
+                'video' => ['Video Showing' => -1.0, 'Video Editing' => -1.0, 'Video Coverage' => -1.0, 'Others' => -1.0],
+                'lighting' => ['Follow Spot' => 6.0, 'House Light' => 6.0, 'Electric Fans' => 6.0, 'Others' => 6.0],
+            ];
+            $avRemarksShiftYByGroup = [
+                'audio' => ['Amplifier' => -2.1, 'Speaker' => -2.1, 'Microphone' => -2.4, 'Others' => -3.0],
+                'video' => ['Video Showing' => -2.1, 'Video Editing' => -2.1, 'Video Coverage' => -2.4, 'Others' => -3.0],
+                'lighting' => ['Follow Spot' => -2.1, 'House Light' => -2.1, 'Electric Fans' => -2.4, 'Others' => -3.0],
+            ];
+
+            $writeAvTable = function (float $baseX, float $yStart, float $rowGap, array $items, array $selected, array $details, string $groupKey) use ($pdf, $offsetY, $avTickShiftXDefault, $avTickShiftYDefault, $avTickShiftXByGroup, $avTickShiftYByGroup, $avQtyShiftXDefault, $avQtyShiftYDefault, $avQtyShiftXByGroup, $avQtyShiftYByGroup, $avRemarksShiftXDefault, $avRemarksShiftYDefault, $avRemarksShiftXByGroup, $avRemarksShiftYByGroup) {
                 $tickX = $baseX - 0.6;
                 $qtyX = $baseX + 21.0;
                 $qtyW = 12.0;
@@ -600,8 +802,10 @@ HTML;
                     $rowY = $yStart + ($idx * $rowGap);
                     $selectedHere = in_array($item, $selected, true);
                     if ($selectedHere) {
+                        $shiftX = $avTickShiftXDefault + (($avTickShiftXByGroup[$groupKey][$item] ?? 0.0));
+                        $shiftY = $avTickShiftYDefault + (($avTickShiftYByGroup[$groupKey][$item] ?? 0.0));
                         $pdf->SetFont('zapfdingbats', '', 7.5);
-                        $pdf->Text($tickX + 0.15, $offsetY + $rowY + 0.55, '4');
+                        $pdf->Text($tickX + 0.15 + $shiftX, $offsetY + $rowY + 0.55 + $shiftY, '4');
                     }
 
                     if (!$selectedHere) {
@@ -620,13 +824,17 @@ HTML;
                     }
 
                     if ($qty !== '') {
+                        $qtyShiftX = $avQtyShiftXDefault + (($avQtyShiftXByGroup[$groupKey][$item] ?? 0.0));
+                        $qtyShiftY = $avQtyShiftYDefault + (($avQtyShiftYByGroup[$groupKey][$item] ?? 0.0));
                         $pdf->SetFont('helvetica', '', 8.5);
-                        $pdf->SetXY($qtyX, $offsetY + $rowY - 0.2);
+                        $pdf->SetXY($qtyX + $qtyShiftX, $offsetY + $rowY - 0.2 + $qtyShiftY);
                         $pdf->Cell($qtyW, 4, $qty, 0, 0, 'C', false, '', 0, false, 'T', 'M');
                     }
                     if ($remarks !== '') {
+                        $remarksShiftX = $avRemarksShiftXDefault + (($avRemarksShiftXByGroup[$groupKey][$item] ?? 0.0));
+                        $remarksShiftY = $avRemarksShiftYDefault + (($avRemarksShiftYByGroup[$groupKey][$item] ?? 0.0));
                         $pdf->SetFont('helvetica', '', 8.5);
-                        $pdf->SetXY($remarksX, $offsetY + $rowY - 0.2);
+                        $pdf->SetXY($remarksX + $remarksShiftX, $offsetY + $rowY - 0.2 + $remarksShiftY);
                         $pdf->Cell($remarksW, 4, $remarks, 0, 0, 'L', false, '', 0, false, 'T', 'M');
                     }
                 }
@@ -636,14 +844,28 @@ HTML;
 
             $avYStart = $copyH * 0.585;
             $avRowGap = $copyH * 0.027;
-            $writeAvTable($pageW * 0.11, $avYStart, $avRowGap, ['Amplifier', 'Speaker', 'Microphone', 'Others'], $selectedAudio, $audioDetails);
-            $writeAvTable($pageW * 0.38, $avYStart, $avRowGap, ['Video Showing', 'Video Editing', 'Video Coverage', 'Others'], $selectedVideo, $videoDetails);
-            $writeAvTable($pageW * 0.65, $avYStart, $avRowGap, ['Follow Spot', 'House Light', 'Electric Fans', 'Others'], $selectedLighting, $lightingDetails);
+            $writeAvTable($pageW * 0.11, $avYStart, $avRowGap, ['Amplifier', 'Speaker', 'Microphone', 'Others'], $selectedAudio, $audioDetails, 'audio');
+            $writeAvTable($pageW * 0.38, $avYStart, $avRowGap, ['Video Showing', 'Video Editing', 'Video Coverage', 'Others'], $selectedVideo, $videoDetails, 'video');
+            $writeAvTable($pageW * 0.65, $avYStart, $avRowGap, ['Follow Spot', 'House Light', 'Electric Fans', 'Others'], $selectedLighting, $lightingDetails, 'lighting');
 
-            $sigX = $pageW * 0.20;
-            $sigW = $pageW * 0.25;
-            $sigY = $copyH * 0.84;
-            $write($sigX, $sigY, $requestedBy, $sigW, 'C', 10, 'B');
+            $sigX = $pageW * 0.03;
+            $sigW = $pageW * 0.33;
+            $sigText = trim($requestedBy);
+            if ($sigText !== '') {
+                $sigLineY = $copyH * 0.89;
+                $sigH = 5.5;
+                $fontSize = 10.0;
+                $minFontSize = 7.0;
+                $pdf->SetFont('helvetica', 'B', $fontSize);
+                while ($fontSize > $minFontSize && $pdf->GetStringWidth($sigText) > $sigW) {
+                    $fontSize -= 0.5;
+                    $pdf->SetFont('helvetica', 'B', $fontSize);
+                }
+
+                $pdf->SetXY($sigX, $offsetY + $sigLineY - $sigH);
+                $pdf->Cell($sigW, $sigH, $sigText, 0, 0, 'C', false, '', 0, false, 'T', 'B');
+                $pdf->SetFont('helvetica', '', 10);
+            }
         }
 
         return $pdf->Output('ReservationForm.pdf', 'S');

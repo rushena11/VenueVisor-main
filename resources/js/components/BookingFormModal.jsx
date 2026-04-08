@@ -264,7 +264,13 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
   }, [isOpen, reservationToEdit]);
 
   const handleChange = (e) => { 
-    setFormData({ ...formData, [e.target.name]: e.target.value }); 
+    const { name, value } = e.target;
+    if (name === 'paxCount') {
+      const v = (value || '').toString().replace(/\D+/g, '');
+      setFormData({ ...formData, paxCount: v });
+      return;
+    }
+    setFormData({ ...formData, [name]: value }); 
   }; 
   const toggleSlot = (key) => {
     setSelectedSlots(prev => {
@@ -668,6 +674,13 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                 value={formData.paxCount}
                 onChange={handleChange}
                 placeholder="e.g. 120"
+                type="number"
+                inputMode="numeric"
+                min="0"
+                step="1"
+                onKeyDown={(e) => {
+                  if (['e','E','+','-','.'].includes(e.key)) e.preventDefault();
+                }}
                 className="w-full border rounded-md p-2 text-sm border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
               />
             </div>

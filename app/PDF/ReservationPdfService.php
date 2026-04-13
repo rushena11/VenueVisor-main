@@ -885,6 +885,18 @@ HTML;
             0 => 0.0,
             1 => 0.0,
         ];
+        $venueSpecifyLayoutByCopy = [
+            0 => [
+                'classroom' => ['xRatio' => 0.57, 'yRatio' => 0.335, 'wRatio' => 0.25, 'size' => 9.0, 'yOffset' => -0.3],
+                'laboratory' => ['xRatio' => 0.61, 'yRatio' => 0.358, 'wRatio' => 0.25, 'size' => 9.0, 'yOffset' => -0.3],
+                'others' => ['xRatio' => 0.55, 'yRatio' => 0.432, 'wRatio' => 0.25, 'size' => 9.0, 'yOffset' => -0.3],
+            ],
+            1 => [
+                'classroom' => ['xRatio' => 0.57, 'yRatio' => 0.338, 'wRatio' => 0.25, 'size' => 9.0, 'yOffset' => -0.3],
+                'laboratory' => ['xRatio' => 0.61, 'yRatio' => 0.361, 'wRatio' => 0.25, 'size' => 9.0, 'yOffset' => -0.3],
+                'others' => ['xRatio' => 0.55, 'yRatio' => 0.433, 'wRatio' => 0.25, 'size' => 9.0, 'yOffset' => -0.3],
+            ],
+        ];
 
         for ($copyIndex = 0; $copyIndex < $copies; $copyIndex++) {
             $offsetX = (float) ($copyShiftXByCopy[$copyIndex] ?? 0.0);
@@ -953,14 +965,39 @@ HTML;
             $writeField(($rightX + $fieldPadX) + ($mainFieldShiftX['date_of_use'] ?? 0.0), $mainY + ($mainFieldShiftY['date_of_use'] ?? 0.0), $dateOfUse, $rightW - ($fieldPadX * 2), 'L', 10);
             $writeField(($rightX + $fieldPadX) + ($mainFieldShiftX['inclusive_time'] ?? 0.0), ($mainY + $mainGap) + ($mainFieldShiftY['inclusive_time'] ?? 0.0), $time, $rightW - ($fieldPadX * 2), 'L', 10);
 
+            $specLayout = $venueSpecifyLayoutByCopy[$copyIndex] ?? ($venueSpecifyLayoutByCopy[0] ?? []);
             if ($classroomSpec !== '' && $isSelected('Classroom')) {
-                $writeField($pageW * 0.71, ($copyH * 0.345) - 0.3, $classroomSpec, $pageW * 0.25, 'L', 9);
+                $spec = $specLayout['classroom'] ?? [];
+                $writeField(
+                    $pageW * (float) ($spec['xRatio'] ?? 0.57),
+                    ($copyH * (float) ($spec['yRatio'] ?? 0.335)) + (float) ($spec['yOffset'] ?? -0.3),
+                    $classroomSpec,
+                    $pageW * (float) ($spec['wRatio'] ?? 0.25),
+                    'L',
+                    (float) ($spec['size'] ?? 9.0)
+                );
             }
             if ($laboratorySpec !== '' && $isSelected('Laboratory Room')) {
-                $writeField($pageW * 0.71, ($copyH * 0.372) - 0.3, $laboratorySpec, $pageW * 0.25, 'L', 9);
+                $spec = $specLayout['laboratory'] ?? [];
+                $writeField(
+                    $pageW * (float) ($spec['xRatio'] ?? 0.61),
+                    ($copyH * (float) ($spec['yRatio'] ?? 0.358)) + (float) ($spec['yOffset'] ?? -0.3),
+                    $laboratorySpec,
+                    $pageW * (float) ($spec['wRatio'] ?? 0.25),
+                    'L',
+                    (float) ($spec['size'] ?? 9.0)
+                );
             }
             if ($othersSpec !== '' && $isSelected('Others')) {
-                $writeField($pageW * 0.71, ($copyH * 0.462) - 0.3, $othersSpec, $pageW * 0.25, 'L', 9);
+                $spec = $specLayout['others'] ?? [];
+                $writeField(
+                    $pageW * (float) ($spec['xRatio'] ?? 0.55),
+                    ($copyH * (float) ($spec['yRatio'] ?? 0.432)) + (float) ($spec['yOffset'] ?? -0.3),
+                    $othersSpec,
+                    $pageW * (float) ($spec['wRatio'] ?? 0.25),
+                    'L',
+                    (float) ($spec['size'] ?? 9.0)
+                );
             }
 
             foreach ($venueTickPositions as $label => $pos) {

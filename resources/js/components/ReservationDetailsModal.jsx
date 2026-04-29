@@ -77,6 +77,11 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
     const [confirmDecisionOpen, setConfirmDecisionOpen] = useState(false);
     const [decisionAction, setDecisionAction] = useState(null);
     const [wifiPreference, setWifiPreference] = useState(reservation.wifi_preference);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editDate, setEditDate] = useState('');
+    const [editTimeStart, setEditTimeStart] = useState('');
+    const [editTimeEnd, setEditTimeEnd] = useState('');
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
 
     const handleOrNumberChange = (e) => {
         const raw = e.target.value || '';
@@ -331,11 +336,38 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-500">Date of Use</span>
-                                    <span className="text-gray-900">{formatDate(reservation.date_of_use)}</span>
+                                    {isEditMode ? (
+                                        <input
+                                            type="date"
+                                            value={editDate}
+                                            onChange={(e) => setEditDate(e.target.value)}
+                                            className="border border-gray-300 rounded px-2 py-1 text-sm"
+                                        />
+                                    ) : (
+                                        <span className="text-gray-900">{formatDate(reservation.date_of_use)}</span>
+                                    )}
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-500">Inclusive Time</span>
-                                    <span className="text-gray-900">{formatTime(reservation.inclusive_time_start)} - {formatTime(reservation.inclusive_time_end)}</span>
+                                    {isEditMode ? (
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="time"
+                                                value={editTimeStart}
+                                                onChange={(e) => setEditTimeStart(e.target.value)}
+                                                className="border border-gray-300 rounded px-2 py-1 text-sm w-24"
+                                            />
+                                            <span className="text-gray-500">to</span>
+                                            <input
+                                                type="time"
+                                                value={editTimeEnd}
+                                                onChange={(e) => setEditTimeEnd(e.target.value)}
+                                                className="border border-gray-300 rounded px-2 py-1 text-sm w-24"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <span className="text-gray-900">{formatTime(reservation.inclusive_time_start)} - {formatTime(reservation.inclusive_time_end)}</span>
+                                    )}
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-500">Pax</span>
@@ -493,14 +525,70 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                             {effectiveIsAdmin ? (
                                 reservation.status === 'approved' ? (
                                     <>
-                                        <button
-                                            onClick={() => onEdit && onEdit(reservation)}
-                                            className="px-4 py-2 rounded-lg border border-indigo-300 text-indigo-700 bg-white hover:bg-indigo-50"
-                                            title="Edit approved reservation"
-                                        >
-                                            Edit
-                                        </button>
-                                        <button onClick={onClose} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Close</button>
+                                        {isEditMode ? (
+                                            <>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!editDate || !editTimeStart || !editTimeEnd) {
+                                                            if (onNotify) onNotify('Please fill in all date and time fields', 'warning');
+                                                            return;
+                                                        }
+                                                        setIsSavingEdit(true);
+                                                        try {
+                                                            const token = localStorage.getItem('token');
+                                                            await axios.put(`/api/reservations/${reservation.id}`, {
+                                                                date_of_use: editDate,
+                                                                inclusive_time_start: editTimeStart,
+                                                                inclusive_time_end: editTimeEnd,
+                                                            }, { headers: { Authorization: `Bearer ${token}` } });
+                                                            if (onReservationUpdate) {
+                                                                onReservationUpdate({
+                                                                    ...reservation,
+                                                                    date_of_use: editDate,
+                                                                    inclusive_time_start: editTimeStart,
+                                                                    inclusive_time_end: editTimeEnd,
+                                                                });
+                                                            }
+                                                            if (onNotify) onNotify('Reservation updated successfully', 'success');
+                                                            setIsEditMode(false);
+                                                        } catch (err) {
+                                                            if (onNotify) onNotify(err.response?.data?.message || 'Failed to update reservation', 'error');
+                                                        } finally {
+                                                            setIsSavingEdit(false);
+                                                        }
+                                                    }}
+                                                    disabled={isSavingEdit}
+                                                    className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                                                >
+                                                    {isSavingEdit ? 'Saving...' : 'Save'}
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsEditMode(false)}
+                                                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                                                    Use this for cancellations/weather-related rescheduling
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        setEditDate(reservation.date_of_use ? String(reservation.date_of_use).split('T')[0] : '');
+                                                        setEditTimeStart(reservation.inclusive_time_start || '');
+                                                        setEditTimeEnd(reservation.inclusive_time_end || '');
+                                                        setIsEditMode(true);
+                                                    }}
+                                                    className="px-4 py-2 rounded-lg border border-indigo-300 text-indigo-700 bg-white hover:bg-indigo-50"
+                                                    title="Edit approved reservation"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button onClick={onClose} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Close</button>
+                                            </>
+                                        )}
                                     </>
                                 ) : (
                                     <>

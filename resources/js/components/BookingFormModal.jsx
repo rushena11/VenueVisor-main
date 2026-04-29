@@ -722,19 +722,47 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
           </button>
           <div className="mb-4">
             <h2 className="text-lg font-bold text-black-900">Reservation Request</h2>
-            <div className="mt-1 text-sm text-gray-500 flex items-center gap-2">
-              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-              {selectedDate ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ''}
-            </div>
-            <div className="mt-3 rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3 flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white border border-indigo-100 text-indigo-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M9 21V9h6v12M7 9h10l-1-5H8l-1 5z"/></svg>
+            {isEditing && (
+              <div className="mt-3 space-y-2">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">DATE OF USE</label>
+                  <input
+                    type="date"
+                    name="dateOfUse"
+                    value={formData.dateOfUse}
+                    onChange={handleChange}
+                    className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">TIME (e.g. 08:00 - 17:00)</label>
+                  <input
+                    name="inclusiveTime"
+                    value={formData.inclusiveTime}
+                    onChange={handleChange}
+                    placeholder="e.g. 08:00 - 17:00"
+                    className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+                  />
+                </div>
               </div>
-              <div className="flex-1">
-                <div className="text-[11px] font-bold tracking-wide text-indigo-700 uppercase">VENUE</div>
-                <div className="text-sm font-bold text-gray-900">{venueName || "Venue"}</div>
-              </div>
-            </div>
+            )}
+            {!isEditing && (
+              <>
+                <div className="mt-1 text-sm text-gray-500 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  {selectedDate ? new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : ''}
+                </div>
+                <div className="mt-3 rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3 flex items-center gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-white border border-indigo-100 text-indigo-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21h18M9 21V9h6v12M7 9h10l-1-5H8l-1 5z"/></svg>
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-[11px] font-bold tracking-wide text-indigo-700 uppercase">VENUE</div>
+                    <div className="text-sm font-bold text-gray-900">{venueName || "Venue"}</div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
           <div className="space-y-3">
             {isOthersVenueSelected() && (

@@ -69,8 +69,8 @@ const Layout = () => {
         return <Navigate to="/login" />;
     }
 
-    const displayName = user?.name || user?.username || 'Admin User';
-    const roleLabel = user?.role ? String(user.role).charAt(0).toUpperCase() + String(user.role).slice(1) : 'Administrator';
+    const displayName = 'Admin';
+    const roleLabel = 'Administrator';
     const avatarLetter = String(displayName || 'A').trim().charAt(0).toUpperCase() || 'A';
 
     const navItems = useMemo(() => ([
@@ -101,8 +101,8 @@ const Layout = () => {
         'text-white/80 hover:bg-white/10 hover:text-white';
 
     return (
-        <div className="min-h-screen bg-gray-100 font-sans">
-            <div className="flex min-h-screen">
+        <div className="h-screen overflow-hidden bg-gray-100 font-sans">
+            <div className="flex h-screen min-h-0 overflow-hidden">
                 {isMobileMenuOpen && (
                     <button
                         type="button"
@@ -112,7 +112,7 @@ const Layout = () => {
                     />
                 )}
                 <aside
-                    className={`fixed z-40 inset-y-0 left-0 w-[280px] ${isSidebarCollapsed ? 'md:w-[88px]' : 'md:w-[280px]'} transform transition-all duration-200 md:static md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} bg-gradient-to-b from-blue-950 via-blue-950 to-blue-900 text-white`}
+                    className={`fixed z-40 inset-y-0 left-0 w-[280px] ${isSidebarCollapsed ? 'md:w-[88px]' : 'md:w-[280px]'} transform transition-all duration-200 md:static md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} bg-gradient-to-b from-blue-950 via-blue-950 to-blue-900 text-white overflow-hidden`}
                 >
                     <div className={`h-16 ${isSidebarCollapsed ? 'px-3' : 'px-5'} flex items-center justify-between border-b border-white/10`}>
                         <div className="flex items-center gap-3">
@@ -137,7 +137,7 @@ const Layout = () => {
                         </button>
                     </div>
 
-                    <div className="p-4 flex flex-col h-[calc(100%-4rem)]">
+                    <div className="p-4 flex flex-col h-[calc(100%-4rem)] overflow-hidden">
                         <nav className="space-y-1">
                             {navItems.map(item => {
                                 const active = item.match(location.pathname);
@@ -222,18 +222,6 @@ const Layout = () => {
                                     </svg>
                                     {!isSidebarCollapsed && <span>Users</span>}
                                 </button>
-                                <Link
-                                    to="/venues"
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                    className={`${linkBase} ${location.pathname.startsWith('/venues') ? activeLink : inactiveLink}`}
-                                    title={isSidebarCollapsed ? 'Venues' : undefined}
-                                >
-                                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                                        <path d="M3 21h18M5 21V7l7-4 7 4v14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                        <path d="M9 21v-6h6v6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
-                                    {!isSidebarCollapsed && <span>Venues</span>}
-                                </Link>
                                 <button type="button" disabled className={`${linkBase} opacity-50 cursor-not-allowed text-white/70`} title={isSidebarCollapsed ? 'Settings' : undefined}>
                                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
                                         <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" stroke="currentColor" strokeWidth="2" />
@@ -272,7 +260,7 @@ const Layout = () => {
                     </div>
                 </aside>
 
-                <div className="flex-1 min-w-0 flex flex-col">
+                <div className="flex-1 min-w-0 flex flex-col min-h-0">
                     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6">
                         <div className="flex items-center gap-3">
                             <button
@@ -325,7 +313,7 @@ const Layout = () => {
                         </div>
                     </header>
 
-                    <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-6">
+                    <main className="flex-1 min-w-0 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6">
                         <Outlet />
                     </main>
                 </div>

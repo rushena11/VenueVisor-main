@@ -152,6 +152,15 @@ HTML;
         $videoHtml    = $renderAVTable(['Video Showing','Video Editing','Video Coverage','Others'], $selectedVideo, $videoDetails);
         $lightingHtml = $renderAVTable(['Follow Spot','House Light','Electric Fans','Others'], $selectedLighting, $lightingDetails);
 
+        $hasAudioVisualSelection =
+            (is_array($selectedAudio) && count($selectedAudio) > 0)
+            || (is_array($selectedVideo) && count($selectedVideo) > 0)
+            || (is_array($selectedLighting) && count($selectedLighting) > 0)
+            || strtolower((string)($data['wifi_preference'] ?? '')) === 'wifi';
+        $hrdcAvCoordinator = $hasAudioVisualSelection ? e('Sir Mendoza') : '&nbsp;';
+        $buildingCoordinatorName = e('Building Coordinator Name');
+        $directorName = e('Director Name');
+
         $logoFilePath = public_path('assets/LNULogo.png');
         $logoSrc = '';
         if (is_file($logoFilePath)) {
@@ -410,7 +419,7 @@ HTML;
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
             <td width="33%"></td>
-            <td width="28%" style="border-bottom:1px solid #000;"></td>
+                        <td width="28%" align="center" style="border-bottom:1px solid #000; font-weight:bold;">{$hrdcAvCoordinator}</td>
             <td width="33%"></td>
           </tr>
           <tr>
@@ -437,7 +446,7 @@ HTML;
             <td width="32%" valign="top">
               <div style="margin-bottom:5mm;">Recommending Approval:</div>
               <div style="border-bottom:1px solid #000; height:1px;"></div>
-              <div style="text-align:center; margin-top:1px;">&nbsp;</div>
+                            <div style="text-align:center; margin-top:1px; font-weight:bold;">{$buildingCoordinatorName}</div>
               <div style="text-align:center; font-size:8pt;">Building Coordinator (Signature Over Printed Name)</div>
             </td>
             <td width="4%"></td>
@@ -445,6 +454,7 @@ HTML;
               <table border="1" cellpadding="3" cellspacing="0" width="100%">
                 <tr><td align="left">Approved by:</td></tr>
                 <tr><td height="10mm"></td></tr>
+                                <tr><td align="center" style="font-size:8.5pt; font-weight:bold;">{$directorName}</td></tr>
                 <tr><td style="border-top:1px solid #000; font-size:8pt;" align="center">Director, Physical Plant & Facilities</td></tr>
                 <tr><td align="left" style="font-size:8.5pt; font-weight:bold; border-top:1px solid #000;">DATE RECEIVED ________________</td></tr>
               </table>
@@ -577,10 +587,17 @@ HTML;
         $selectedAudio = is_array($data['selected_audio'] ?? null) ? $data['selected_audio'] : [];
         $selectedVideo = is_array($data['selected_video'] ?? null) ? $data['selected_video'] : [];
         $selectedLighting = is_array($data['selected_lighting'] ?? null) ? $data['selected_lighting'] : [];
+        $wifiPreference = strtolower($clean($data['wifi_preference'] ?? ''));
 
         $audioDetails = is_array($data['audio_details'] ?? null) ? $data['audio_details'] : [];
         $videoDetails = is_array($data['video_details'] ?? null) ? $data['video_details'] : [];
         $lightingDetails = is_array($data['lighting_details'] ?? null) ? $data['lighting_details'] : [];
+
+        $hasAudioVisualSelection =
+            count($selectedAudio) > 0
+            || count($selectedVideo) > 0
+            || count($selectedLighting) > 0
+            || $wifiPreference === 'wifi';
 
         $isSelected = function (string $label) use ($venueName, $venueKey) {
             $l = strtolower($label);
@@ -877,6 +894,18 @@ HTML;
             0 => ['xRatio' => 0.03, 'wRatio' => 0.33, 'lineYRatio' => 0.89, 'h' => 5.5],
             1 => ['xRatio' => 0.03, 'wRatio' => 0.33, 'lineYRatio' => 0.89, 'h' => 5.5],
         ];
+        $hrdcAvCoordinatorLayoutByCopy = [
+            0 => ['xRatio' => 0.36, 'wRatio' => 0.28, 'lineYRatio' => 0.770, 'h' => 4.8],
+            1 => ['xRatio' => 0.36, 'wRatio' => 0.28, 'lineYRatio' => 0.770, 'h' => 4.8],
+        ];
+        $buildingCoordinatorLayoutByCopy = [
+            0 => ['xRatio' => 0.36, 'wRatio' => 0.28, 'lineYRatio' => 0.899, 'h' => 4.8],
+            1 => ['xRatio' => 0.36, 'wRatio' => 0.28, 'lineYRatio' => 0.902, 'h' => 4.8],
+        ];
+        $directorLayoutByCopy = [
+            0 => ['xRatio' => 0.75, 'wRatio' => 0.18, 'lineYRatio' => 0.805, 'h' => 4.8],
+            1 => ['xRatio' => 0.75, 'wRatio' => 0.18, 'lineYRatio' => 0.807, 'h' => 4.8],
+        ];
         $requestedByShiftXByCopy = [
             0 => 0.0,
             1 => 0.0,
@@ -1084,6 +1113,29 @@ HTML;
             $writeAvTable($pageW * 0.11, $avYStart, $avRowGap, ['Amplifier', 'Speaker', 'Microphone', 'Others'], $selectedAudio, $audioDetails, 'audio');
             $writeAvTable($pageW * 0.38, $avYStart, $avRowGap, ['Video Showing', 'Video Editing', 'Video Coverage', 'Others'], $selectedVideo, $videoDetails, 'video');
             $writeAvTable($pageW * 0.65, $avYStart, $avRowGap, ['Follow Spot', 'House Light', 'Electric Fans', 'Others'], $selectedLighting, $lightingDetails, 'lighting');
+
+            if ($hasAudioVisualSelection) {
+                $coordLayout = $hrdcAvCoordinatorLayoutByCopy[$copyIndex] ?? $hrdcAvCoordinatorLayoutByCopy[0] ?? [];
+                $coordX = $pageW * (float) ($coordLayout['xRatio'] ?? 0.36);
+                $coordW = $pageW * (float) ($coordLayout['wRatio'] ?? 0.28);
+                $coordLineY = $copyH * (float) ($coordLayout['lineYRatio'] ?? 0.604);
+                $coordH = (float) ($coordLayout['h'] ?? 4.8);
+                $writeField($coordX, $coordLineY - $coordH, 'Sir Mendoza', $coordW, 'C', 9.5, 'B');
+            }
+
+            $bcLayout = $buildingCoordinatorLayoutByCopy[$copyIndex] ?? $buildingCoordinatorLayoutByCopy[0] ?? [];
+            $bcX = $pageW * (float) ($bcLayout['xRatio'] ?? 0.36);
+            $bcW = $pageW * (float) ($bcLayout['wRatio'] ?? 0.28);
+            $bcLineY = $copyH * (float) ($bcLayout['lineYRatio'] ?? 0.872);
+            $bcH = (float) ($bcLayout['h'] ?? 4.8);
+            $writeField($bcX, $bcLineY - $bcH, 'Building Coordinator Name', $bcW, 'C', 9.0, 'B');
+
+            $directorLayout = $directorLayoutByCopy[$copyIndex] ?? $directorLayoutByCopy[0] ?? [];
+            $directorX = $pageW * (float) ($directorLayout['xRatio'] ?? 0.78);
+            $directorW = $pageW * (float) ($directorLayout['wRatio'] ?? 0.18);
+            $directorLineY = $copyH * (float) ($directorLayout['lineYRatio'] ?? 0.935);
+            $directorH = (float) ($directorLayout['h'] ?? 4.8);
+            $writeField($directorX, $directorLineY - $directorH, 'Director Name', $directorW, 'C', 9.0, 'B');
 
             $sigLayout = $signatureLayoutByCopy[$copyIndex] ?? $signatureLayoutByCopy[0] ?? [];
             $sigX = $pageW * (float) ($sigLayout['xRatio'] ?? 0.03);

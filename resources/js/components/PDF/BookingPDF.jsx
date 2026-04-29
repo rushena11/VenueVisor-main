@@ -90,6 +90,10 @@ const BookingPDF = ({
     return (vn && (vn.includes(ll) || ll.includes(vn))) || (vk && (vk.includes(ll) || ll.includes(vk)));
   };
   const showCteBuildingRoom = isVenueSelected("CTE Training Hall");
+  const hasAudioVisualSelection =
+    (Array.isArray(selectedAudio) && selectedAudio.length > 0)
+    || (Array.isArray(selectedVideo) && selectedVideo.length > 0)
+    || (Array.isArray(selectedLighting) && selectedLighting.length > 0);
   const classroomSpecify = (formData?.classroomSpecify ?? formData?.classroom_specify ?? "").toString();
   const laboratoryRoomSpecify = (formData?.laboratoryRoomSpecify ?? formData?.laboratory_room_specify ?? "").toString();
   const othersVenueSpecify = (formData?.othersVenueSpecify ?? formData?.others_venue_specify ?? "").toString();
@@ -332,7 +336,7 @@ const BookingPDF = ({
 
         <div className="text-center">
           <div className="text-[10pt] mb-1">Certification of Availability of Equipment:</div>
-          <div className="border-b border-black h-[18px] w-[80%] mx-auto" />
+          <div className="border-b border-black h-[18px] w-[80%] mx-auto font-bold">{hasAudioVisualSelection ? "Sir Mendoza" : "\u00A0"}</div>
           <div className="text-[9pt] mt-1">HRDC Audio-Visual Coordinator</div>
           <div className="h-3" />
           <div className="text-[10pt] mb-1">Recommending Approval:</div>

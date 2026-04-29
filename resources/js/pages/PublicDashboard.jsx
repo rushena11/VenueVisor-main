@@ -295,21 +295,21 @@ const PublicDashboard = () => {
     // Venue Name Mapping
     // Order matters for display
     const venueNames = {
-        'hrdc_hall': 'HRDC Hall',
+        'admin_building_2nd_floor': 'Admin Ballroom 2F',
+        'alba_hall': 'Alba Hall',
         'av_studio': 'AV Studio',
         'bleacher': 'Bleacher',
-        'alba_hall': 'Alba Hall',
-        'student_center_mini_theater': 'Student Center Mini-Theater',
-        'cte_training_hall_2_or_3': 'CTE Training Hall',
-        'admin_building_2nd_floor': 'Admin Ballroom 2F',
-        'multi_purpose_hall_3f': 'Multi-Purpose Hall 3F',
-        'hum_av_theater': 'Hum. AV Theater',
-        'dance_studio_hall_3f': 'Dance Studio',
-        'cme_gym': 'CME Gym',
         'classroom_specify': 'Classroom',
+        'cme_gym': 'CME Gym',
+        'cte_training_hall_2_or_3': 'CTE Training Hall',
+        'dance_studio_hall_3f': 'Dance Studio',
+        'hrdc_hall': 'HRDC Hall',
+        'hrdc_quadrangle_stage': 'ORC Quadrangle/Stage',
+        'hum_av_theater': 'Hum. AV Theater',
         'laboratory_room_specify': 'Laboratory Room',
         'library_grounds': 'Library Grounds',
-        'hrdc_quadrangle_stage': 'ORC Quadrangle/Stage',
+        'multi_purpose_hall_3f': 'Multi-Purpose Hall 3F',
+        'student_center_mini_theater': 'Student Center Mini-Theater',
         'others_venue_specify': 'Others'
     };
 

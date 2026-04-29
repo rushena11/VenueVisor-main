@@ -5,6 +5,18 @@ const Logo = "/assets/LNULogo.png";
 const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStatusUpdate, onReservationUpdate, onEdit, onDeleted, onNotify }) => {
     if (!isOpen || !reservation) return null;
 
+    const effectiveIsAdmin = (() => {
+        if (isAdmin) return true;
+        if (!onEdit && typeof onStatusUpdate === 'function') return true;
+        try {
+            const user = JSON.parse(localStorage.getItem('user') || 'null');
+            const role = String(user?.role || '').trim().toLowerCase();
+            return role === 'admin' || role === 'administrator' || role === 'staff';
+        } catch {
+            return false;
+        }
+    })();
+
     const parseDateInput = (s) => {
         if (!s) return null;
         if (typeof s === 'string') {
@@ -110,7 +122,7 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
         }).catch(() => {});
     }, [isOpen, reservation?.id]);
 
-    const isOrLocked = reservation.status === 'approved';
+    const isOrLocked = reservation.status === 'approved' || reservation.status === 'rejected';
 
     const saveOR = async () => {
         setSaving(true);
@@ -272,6 +284,7 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
         return 'no_wifi';
     })();
     const wifiLabel = wifiNormalized === 'wifi' ? 'With Wifi' : 'No Wifi';
+    const isPending = reservation.status === 'pending';
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -292,7 +305,7 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                         }`}>
                             {reservation.status === 'rejected' ? 'Denied' : reservation.status.charAt(0).toUpperCase()+reservation.status.slice(1)}
                         </span>
-                        {isAdmin && reservation.status !== 'approved' && (
+                        {effectiveIsAdmin && reservation.status !== 'approved' && (
                             <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close" title="Close">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
@@ -339,7 +352,7 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                             </div>
                             <div>
                                 <div className="text-sm font-semibold text-gray-700 mb-2">Official Receipt</div>
-                                {(!isAdmin || isOrLocked) ? (
+                                {(!effectiveIsAdmin || isOrLocked) ? (
                                     <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 space-y-2">
                                         <div className="flex items-center justify-between text-sm">
                                             <span className="text-gray-500">OR Number</span>
@@ -477,14 +490,41 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="text-xs text-gray-500">Requested on {formatDate(reservation.created_at || reservation.date_of_use)}</div>
                         <div className="flex flex-wrap items-center justify-end gap-2">
-                            {isAdmin && reservation.status === 'pending' ? (
+                            {effectiveIsAdmin ? (
+                                reservation.status === 'approved' ? (
+                                    <>
+                                        <button
+                                            onClick={() => onEdit && onEdit(reservation)}
+                                            className="px-4 py-2 rounded-lg border border-indigo-300 text-indigo-700 bg-white hover:bg-indigo-50"
+                                            title="Edit approved reservation"
+                                        >
+                                            Edit
+                                        </button>
+                                        <button onClick={onClose} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Close</button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={() => { setDecisionAction('rejected'); setConfirmDecisionOpen(true); }}
+                                            disabled={!isPending}
+                                            className={`px-4 py-2 rounded-lg border ${isPending ? 'border-red-300 text-red-700 bg-white hover:bg-red-50' : 'border-gray-300 text-gray-400 bg-white cursor-not-allowed'}`}
+                                            title={isPending ? 'Deny request' : 'Only pending requests can be denied'}
+                                        >
+                                            Deny
+                                        </button>
+                                        <button
+                                            onClick={() => { setDecisionAction('approved'); setConfirmDecisionOpen(true); }}
+                                            disabled={!isPending}
+                                            className={`px-4 py-2 rounded-lg ${isPending ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-300 text-gray-600 cursor-not-allowed'}`}
+                                            title={isPending ? 'Approve request' : 'Only pending requests can be approved'}
+                                        >
+                                            Approve
+                                        </button>
+                                        <button onClick={onClose} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Close</button>
+                                    </>
+                                )
+                            ) : (reservation.status === 'pending' ? (
                                 <>
-                                    <button onClick={() => { setDecisionAction('rejected'); setConfirmDecisionOpen(true); }} className="px-4 py-2 rounded-lg border border-red-300 text-red-700 bg-white hover:bg-red-50">Deny</button>
-                                    <button onClick={() => { setDecisionAction('approved'); setConfirmDecisionOpen(true); }} className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">Approve</button>
-                                </>
-                            ) : (!isAdmin && reservation.status === 'pending' ? (
-                                <>
-                                    <button onClick={cancelReservation} disabled={deleting} className={`px-4 py-2 rounded-lg border ${deleting ? 'border-gray-300 text-gray-400 bg-white' : 'border-red-300 text-red-700 bg-white hover:bg-red-50'}`}>Cancel</button>
                                     <button onClick={() => onEdit && onEdit(reservation)} className="px-4 py-2 rounded-lg bg-indigo-700 text-white hover:bg-indigo-800">Edit</button>
                                     <button onClick={onClose} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Close</button>
                                 </>
@@ -523,7 +563,7 @@ const ReservationDetailsModal = ({ isOpen, onClose, reservation, isAdmin, onStat
                                 </div>
                                 <div className="mt-4 text-base font-semibold text-gray-900">Cancel this request?</div>
                                 <div className="mt-2 text-xs text-gray-500">
-                                    If you continue, your reservation request will be cancelled. You can always submit a new request later.
+                                    If you continue, this reservation request will be cancelled.
                                 </div>
                             </div>
 

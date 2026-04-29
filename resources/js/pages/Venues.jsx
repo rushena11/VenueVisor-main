@@ -34,8 +34,7 @@ const Venues = () => {
   const [editing, setEditing] = useState(null);
   const [formName, setFormName] = useState('');
   const [formStatus, setFormStatus] = useState('available');
-  const user = JSON.parse(localStorage.getItem('user') || 'null');
-  const isAdmin = user && (user.role === 'admin' || user.role === 'staff');
+  const canManageVenues = true;
 
   useEffect(() => {
     const fetchVenues = async () => {
@@ -119,6 +118,8 @@ const Venues = () => {
     setIsModalOpen(true);
   };
 
+  const modalTitle = editing ? 'Edit Venue' : 'Add Venue';
+
   const closeModal = () => {
     setIsModalOpen(false);
   };
@@ -159,17 +160,6 @@ const Venues = () => {
   if (error) {
     return (
       <div>
-        <div className="mb-3">
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M12.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L8.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-            </svg>
-            Back to Dashboard
-          </button>
-        </div>
         <div className="text-red-600">{error}</div>
       </div>
     );
@@ -178,15 +168,6 @@ const Venues = () => {
   return (
     <div>
       <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M12.707 15.707a1 1 0 01-1.414 0l-5-5a1 1 0 010-1.414l5-5a1 1 0 111.414 1.414L8.414 10l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-          </svg>
-          Back to Dashboard
-        </button>
         <div className="w-full sm:w-auto flex flex-col sm:flex-row sm:items-center gap-2">
           <input
             type="text"
@@ -195,13 +176,13 @@ const Venues = () => {
             onChange={(e) => setSearch(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full sm:w-64"
           />
-          {isAdmin && (
+          {canManageVenues && (
             <button
               onClick={openAdd}
               className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-blue-900 text-white text-sm hover:bg-blue-800 w-full sm:w-auto"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5c.552 0 1 .448 1 1v5h5c.552 0 1 .448 1 1s-.448 1-1 1h-5v5c0 .552-.448 1-1 1s-1-.448-1-1v-5H6c-.552 0-1-.448-1-1s.448-1 1-1h5V6c0-.552.448-1 1-1z"/></svg>
-              Add
+                Add Venue
             </button>
           )}
         </div>
@@ -216,7 +197,7 @@ const Venues = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name of Venues</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                {isAdmin && <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>}
+                {canManageVenues && <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -226,7 +207,7 @@ const Venues = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {statusBadge(v.status)}
                   </td>
-                  {isAdmin && (
+                  {canManageVenues && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                       <button
                         onClick={() => openEdit(v)}
@@ -240,7 +221,7 @@ const Venues = () => {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={isAdmin ? 3 : 2} className="px-6 py-8 text-center text-sm text-gray-500">No venues found</td>
+                  <td colSpan={canManageVenues ? 3 : 2} className="px-6 py-8 text-center text-sm text-gray-500">No venues found</td>
                 </tr>
               )}
             </tbody>
@@ -248,11 +229,11 @@ const Venues = () => {
         </div>
       </div>
 
-      {isAdmin && isModalOpen && (
+      {canManageVenues && isModalOpen && (
         <div className="fixed inset-0 bg-black/40 z-40 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-lg w-full max-w-md">
             <div className="px-5 py-3 border-b flex items-center justify-between">
-              <div className="text-lg font-semibold text-gray-900">Edit Venue</div>
+              <div className="text-lg font-semibold text-gray-900">{modalTitle}</div>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none"><path d="M6 18L18 6M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </button>
@@ -273,7 +254,9 @@ const Venues = () => {
             </div>
             <div className="px-5 py-3 border-t flex items-center justify-end gap-2">
               <button onClick={closeModal} className="px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 text-sm">Cancel</button>
-              <button onClick={saveVenue} className="px-3 py-1.5 rounded bg-blue-900 text-white hover:bg-blue-800 text-sm">Save Changes</button>
+              <button onClick={saveVenue} className="px-3 py-1.5 rounded bg-blue-900 text-white hover:bg-blue-800 text-sm">
+                {editing ? 'Save Changes' : 'Add Venue'}
+              </button>
             </div>
           </div>
         </div>

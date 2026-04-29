@@ -24,6 +24,7 @@ const ReservationForm = () => {
     const [audioDetails, setAudioDetails] = useState({});
     const [videoDetails, setVideoDetails] = useState({});
     const [lightingDetails, setLightingDetails] = useState({});
+    const [reservationToEdit, setReservationToEdit] = useState(null);
     const TIME_SLOTS = [
         { key: "before_8", label: "Before 8:00 AM", start: "06:00", end: "08:00" },
         { key: "8_10", label: "8:00 AM - 10:00 AM", start: "08:00", end: "10:00" },
@@ -189,6 +190,24 @@ const ReservationForm = () => {
         setBannerVenueName(vName);
     }, [location.search]);
     useEffect(() => {
+        const editReservation = location.state?.editReservation;
+        if (!editReservation?.id) return;
+
+        const venueKey = getPrimaryVenueKey(editReservation);
+        const reservationDate = dateOnly(editReservation.date_of_use);
+
+        setReservationToEdit(editReservation);
+        if (reservationDate) {
+            setSelectedDay(new Date(reservationDate));
+            setFormData(prev => ({ ...prev, date_of_use: reservationDate }));
+        }
+        if (venueKey) {
+            setSelectedVenueForBooking(venueKey);
+            setFormData(prev => ({ ...prev, [venueKey]: true }));
+        }
+        setIsBookingModalOpen(true);
+    }, [location.state]);
+    useEffect(() => {
         if (formData.date_of_use) {
             try {
                 const d = new Date(formData.date_of_use);
@@ -251,6 +270,7 @@ const ReservationForm = () => {
         'others_venue_specify': 'Others'
     };
     const venueKeys = Object.keys(venueNames);
+    const getPrimaryVenueKey = (res) => venueKeys.find(key => !!res?.[key]) || null;
     const dateKey = (d) => d ? d.toLocaleDateString('en-CA') : '';
     const timeToMin = (t) => {
         if (!t || typeof t !== 'string') return NaN;
@@ -723,17 +743,25 @@ const ReservationForm = () => {
                         </div>
                         <BookingFormModal
                             isOpen={isBookingModalOpen}
-                            onClose={() => setIsBookingModalOpen(false)}
+                            onClose={() => {
+                                setIsBookingModalOpen(false);
+                                setReservationToEdit(null);
+                            }}
                             venueName={selectedVenueForBooking ? venueNames[selectedVenueForBooking] : ''}
                             venueKey={selectedVenueForBooking}
                             selectedDate={selectedDay}
                             existingReservations={reservations}
+                            reservationToEdit={reservationToEdit}
                             onSubmitted={(res) => {
                                 const normalized = res ? { ...res, date_of_use: dateOnly(res.date_of_use) } : res;
                                 if (normalized) {
-                                    setReservations(prev => [...prev, normalized]);
+                                    setReservations(prev => prev.some(r => r.id === normalized.id)
+                                        ? prev.map(r => (r.id === normalized.id ? normalized : r))
+                                        : [...prev, normalized]
+                                    );
                                 }
                                 setIsBookingModalOpen(false);
+                                setReservationToEdit(null);
                             }}
                         />
                     </div>

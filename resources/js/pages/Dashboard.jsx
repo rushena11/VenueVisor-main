@@ -716,7 +716,7 @@ h1{font-size:20px;margin:0 0 8px}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-                    <div className="text-sm text-gray-500">Welcome back! Here's what's happening with your venues.</div>
+                    <div className="text-sm text-gray-500">Welcome back, Admin! Here's what's happening with your venues.</div>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                     <div className="relative inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
@@ -982,6 +982,15 @@ h1{font-size:20px;margin:0 0 8px}
                 reservation={selectedReservation} 
                 isAdmin={isAdmin}
                 onStatusUpdate={handleStatusUpdate}
+                onEdit={(reservation) => {
+                    setIsViewModalOpen(false);
+                    navigate('/reservation/new', { state: { editReservation: reservation } });
+                }}
+                onDeleted={(id) => {
+                    setReservations(prev => prev.filter(r => r?.id !== id));
+                    setSelectedReservation(null);
+                    setIsViewModalOpen(false);
+                }}
                 onNotify={(msg, type) => addToast(msg, type)}
             />
 

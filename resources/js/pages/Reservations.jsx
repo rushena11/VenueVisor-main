@@ -399,6 +399,11 @@ const Reservations = () => {
                     setReservations(prev => prev.map(r => r.id === updated.id ? updated : r));
                     setSelectedReservation(updated);
                 }}
+                onDeleted={(id) => {
+                    setReservations(prev => prev.filter(r => r?.id !== id));
+                    setSelectedReservation(null);
+                    setIsViewModalOpen(false);
+                }}
                 onNotify={(msg, type) => addToast(msg, type)}
             />
         </div>

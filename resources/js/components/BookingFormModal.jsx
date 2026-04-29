@@ -30,6 +30,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
     classroomSpecify: "",
     laboratoryRoomSpecify: "",
     othersVenueSpecify: "",
+    preferredWifiName: "",
     inclusiveTime: "", 
     paxCount: "",
   };
@@ -40,7 +41,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
   const [selectedAudio, setSelectedAudio] = useState([]);
   const [selectedVideo, setSelectedVideo] = useState([]);
   const [selectedLighting, setSelectedLighting] = useState([]);
-  const [wifiPreference, setWifiPreference] = useState("no_wifi");
+  const [wifiPreference, setWifiPreference] = useState("");
   const [audioDetails, setAudioDetails] = useState({});
   const [videoDetails, setVideoDetails] = useState({});
   const [lightingDetails, setLightingDetails] = useState({});
@@ -118,6 +119,9 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
         if (isOthersVenueSelected() && !formData.othersVenueSpecify?.trim()) {
           throw new Error("Please specify the Others venue.");
         }
+        if (wifiPreference === "wifi" && !formData.preferredWifiName?.trim()) {
+          throw new Error("Please enter the Preferred Wifi Name.");
+        }
         const dateOfUse = formData.dateOfUse?.trim() || toDateInputValue(selectedDate);
         if (!dateOfUse) {
           throw new Error("Please select the Date of Use.");
@@ -154,6 +158,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
           venue_name: venueName || "",
           venue_key: venueKey || "",
           wifi_preference: wifiPreference,
+          preferred_wifi_name: formData.preferredWifiName?.trim() || "",
           selected_audio: selectedAudio,
           selected_video: selectedVideo,
           selected_lighting: selectedLighting,
@@ -231,7 +236,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       setSelectedAudio([]);
       setSelectedVideo([]);
       setSelectedLighting([]);
-      setWifiPreference("no_wifi");
+      setWifiPreference("");
       setAudioDetails({});
       setVideoDetails({});
       setLightingDetails({});
@@ -254,6 +259,7 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       classroomSpecify: reservationToEdit?.classroom_specify || "",
       laboratoryRoomSpecify: reservationToEdit?.laboratory_room_specify || "",
       othersVenueSpecify: reservationToEdit?.others_venue_specify || "",
+      preferredWifiName: reservationToEdit?.preferred_wifi_name || reservationToEdit?.preferred_wifi || "",
       inclusiveTime: timeText,
       paxCount: (reservationToEdit?.pax_count ?? '') + '',
     });
@@ -262,12 +268,12 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
     setShowForm(false);
     const normalizeWifiPreference = (raw) => {
       const v = normalizeKey(raw);
-      if (!v) return "no_wifi";
+      if (!v) return "";
       if (v === "wifi" || v === "with wifi") return "wifi";
       if (v === "no wifi") return "no_wifi";
       if (v === "true" || v === "1") return "wifi";
       if (v === "false" || v === "0") return "no_wifi";
-      return "no_wifi";
+      return "";
     };
     setWifiPreference(normalizeWifiPreference(reservationToEdit?.wifi_preference));
 
@@ -337,7 +343,22 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
   const computeUnavailableSlotKeys = (dateStr) => {
     const set = new Set();
     const vKey = (venueKey || '').toString();
-    if (!dateStr || !vKey) return set;
+    if (!dateStr) return set;
+
+    // For today's date, disable time slots that have already started.
+    const now = new Date();
+    const todayStr = toDateInputValue(now);
+    if (dateStr.trim() === todayStr) {
+      const nowMinutes = (now.getHours() * 60) + now.getMinutes();
+      TIME_SLOTS.forEach(slot => {
+        const slotStartMinutes = timeToMin(slot.start);
+        if (!Number.isNaN(slotStartMinutes) && slotStartMinutes <= nowMinutes) {
+          set.add(slot.key);
+        }
+      });
+    }
+
+    if (!vKey) return set;
 
     const normalizedDate = dateStr.trim();
     const relevant = listReservations.filter(r => {
@@ -385,9 +406,10 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       });
     } else {
       setSelectedAudio([...selectedAudio, item]);
+      const defaultQty = (item === "Amplifier" || item === "Speaker" || item === "Microphone" || item === "Others") ? "1" : "0";
       setAudioDetails(prev => ({
         ...prev,
-        [item]: prev[item] || { qty: "0", remarks: "" }
+        [item]: prev[item] || { qty: defaultQty, remarks: "" }
       }));
     }
   };
@@ -407,9 +429,10 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       });
     } else {
       setSelectedVideo([...selectedVideo, item]);
+      const defaultQty = "1";
       setVideoDetails(prev => ({
         ...prev,
-        [item]: prev[item] || { qty: "0", remarks: "" }
+        [item]: prev[item] || { qty: defaultQty, remarks: "" }
       }));
     }
   };
@@ -429,9 +452,10 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       });
     } else {
       setSelectedLighting([...selectedLighting, item]);
+      const defaultQty = "1";
       setLightingDetails(prev => ({
         ...prev,
-        [item]: prev[item] || { qty: "0", remarks: "" }
+        [item]: prev[item] || { qty: defaultQty, remarks: "" }
       }));
     }
   };
@@ -442,7 +466,13 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
     }));
   };
   const toggleWifiPreference = (value) => {
-    setWifiPreference(value);
+    setWifiPreference(prev => {
+      const next = prev === value ? "" : value;
+      if (next !== "wifi") {
+        setFormData(formPrev => ({ ...formPrev, preferredWifiName: "" }));
+      }
+      return next;
+    });
   };
   useEffect(() => {
     const { text } = computeInclusiveFromSlots(selectedSlots);
@@ -495,6 +525,10 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
       }
       if (isOthersVenueSelected() && !formData.othersVenueSpecify?.trim()) {
         if (onNotify) onNotify("Please specify the Others venue.", 'warning');
+        return;
+      }
+      if (wifiPreference === "wifi" && !formData.preferredWifiName?.trim()) {
+        if (onNotify) onNotify("Please enter the Preferred Wifi Name.", 'warning');
         return;
       }
       const dateOfUse = formData.dateOfUse?.trim() || toDateInputValue(selectedDate);
@@ -703,42 +737,6 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
             </div>
           </div>
           <div className="space-y-3">
-            {isCteTrainingHallSelected() && (
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">CTE BLDG / ROOM NO.</label>
-                <input
-                  name="cteBuildingRoom"
-                  value={formData.cteBuildingRoom}
-                  onChange={handleChange}
-                  placeholder="e.g. CTE Bldg, Room 203"
-                  className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
-                />
-              </div>
-            )}
-            {isClassroomSelected() && (
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">CLASSROOM (PLEASE SPECIFY)</label>
-                <input
-                  name="classroomSpecify"
-                  value={formData.classroomSpecify}
-                  onChange={handleChange}
-                  placeholder="e.g. CTE Building, Room 101"
-                  className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
-                />
-              </div>
-            )}
-            {isLaboratoryRoomSelected() && (
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">LABORATORY ROOM (PLEASE SPECIFY)</label>
-                <input
-                  name="laboratoryRoomSpecify"
-                  value={formData.laboratoryRoomSpecify}
-                  onChange={handleChange}
-                  placeholder="e.g. Science Lab 2"
-                  className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
-                />
-              </div>
-            )}
             {isOthersVenueSelected() && (
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">OTHERS (PLEASE SPECIFY)</label>
@@ -823,6 +821,102 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
             </div>
             <div className="text-xs text-gray-500 mt-2">You may select multiple slots for the same day.</div>
           </div>
+          {isClassroomSelected() && selectedSlots.length > 0 && (
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-gray-700 mb-2">CLASSROOM (PLEASE SPECIFY)</label>
+              <select
+                name="classroomSpecify"
+                value={formData.classroomSpecify}
+                onChange={handleChange}
+                className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+              >
+                <option value="">-- Select a Classroom --</option>
+                <option value="CTE Building, Room 101">CTE Building, Room 101</option>
+                <option value="CTE Building, Room 102">CTE Building, Room 102</option>
+                <option value="CTE Building, Room 103">CTE Building, Room 103</option>
+                <option value="CTE Building, Room 201">CTE Building, Room 201</option>
+                <option value="CTE Building, Room 202">CTE Building, Room 202</option>
+                <option value="Science Building, Room 301">Science Building, Room 301</option>
+                <option value="Science Building, Room 302">Science Building, Room 302</option>
+                <option value="Science Building, Room 303">Science Building, Room 303</option>
+                <option value="Arts Building, Room 105">Arts Building, Room 105</option>
+                <option value="Arts Building, Room 106">Arts Building, Room 106</option>
+                <option value="Other">Other (Please specify below)</option>
+              </select>
+              {formData.classroomSpecify === "Other" && (
+                <input
+                  type="text"
+                  placeholder="Please specify the classroom"
+                  className="w-full border border-gray-400 rounded-md p-2 text-sm mt-2 focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+                  onChange={(e) => setFormData(prev => ({ ...prev, classroomSpecify: e.target.value }))}
+                />
+              )}
+            </div>
+          )}
+          {isCteTrainingHallSelected() && selectedSlots.length > 0 && (
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-gray-700 mb-2">CTE BLDG / ROOM NO.</label>
+              <select
+                name="cteBuildingRoom"
+                value={formData.cteBuildingRoom}
+                onChange={handleChange}
+                className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+              >
+                <option value="">-- Select a CTE Room --</option>
+                <option value="CTE Bldg, Room 201">CTE Bldg, Room 201</option>
+                <option value="CTE Bldg, Room 202">CTE Bldg, Room 202</option>
+                <option value="CTE Bldg, Room 203">CTE Bldg, Room 203</option>
+                <option value="CTE Bldg, Room 204">CTE Bldg, Room 204</option>
+                <option value="CTE Bldg, Room 301">CTE Bldg, Room 301</option>
+                <option value="CTE Bldg, Room 302">CTE Bldg, Room 302</option>
+                <option value="CTE Bldg, Room 303">CTE Bldg, Room 303</option>
+                <option value="CTE Bldg, Room 304">CTE Bldg, Room 304</option>
+                <option value="CTE Bldg, Room 305">CTE Bldg, Room 305</option>
+                <option value="CTE Training Hall 2">CTE Training Hall 2</option>
+                <option value="CTE Training Hall 3">CTE Training Hall 3</option>
+                <option value="Other">Other (Please specify below)</option>
+              </select>
+              {formData.cteBuildingRoom === "Other" && (
+                <input
+                  type="text"
+                  placeholder="Please specify the CTE room"
+                  className="w-full border border-gray-400 rounded-md p-2 text-sm mt-2 focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+                  onChange={(e) => setFormData(prev => ({ ...prev, cteBuildingRoom: e.target.value }))}
+                />
+              )}
+            </div>
+          )}
+          {isLaboratoryRoomSelected() && selectedSlots.length > 0 && (
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-gray-700 mb-2">LABORATORY ROOM (PLEASE SPECIFY)</label>
+              <select
+                name="laboratoryRoomSpecify"
+                value={formData.laboratoryRoomSpecify}
+                onChange={handleChange}
+                className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+              >
+                <option value="">-- Select a Laboratory Room --</option>
+                <option value="Science Lab 1">Science Lab 1</option>
+                <option value="Science Lab 2">Science Lab 2</option>
+                <option value="Science Lab 3">Science Lab 3</option>
+                <option value="Biology Lab">Biology Lab</option>
+                <option value="Chemistry Lab">Chemistry Lab</option>
+                <option value="Physics Lab">Physics Lab</option>
+                <option value="Computer Lab A">Computer Lab A</option>
+                <option value="Computer Lab B">Computer Lab B</option>
+                <option value="Engineering Lab">Engineering Lab</option>
+                <option value="Other">Other (Please specify below)</option>
+              </select>
+              {formData.laboratoryRoomSpecify === "Other" && (
+                <input
+                  type="text"
+                  placeholder="Please specify the laboratory room"
+                  className="w-full border border-gray-400 rounded-md p-2 text-sm mt-2 focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+                  onChange={(e) => setFormData(prev => ({ ...prev, laboratoryRoomSpecify: e.target.value }))}
+                />
+              )}
+            </div>
+          )}
           <div className="mt-6">
             <div className="text-sm font-semibold text-gray-700">Audio-Visual Facilities <span className="text-gray-400 text-xs font-medium">Optional</span></div>
             <div className="grid grid-cols-1 gap-4 mt-2">
@@ -970,6 +1064,18 @@ const BookingFormModal = ({ isOpen, onClose, venueName, venueKey, selectedDate, 
                     <span className="text-sm">No Wifi</span>
                   </label>
                 </div>
+                {wifiPreference === "wifi" && (
+                  <div className="mt-3">
+                    <label className="block text-xs font-bold text-gray-700 mb-1">PREFERRED WIFI NAME</label>
+                    <input
+                      name="preferredWifiName"
+                      value={formData.preferredWifiName}
+                      onChange={handleChange}
+                      placeholder="e.g. VenueVisor-Guest"
+                      className="w-full border border-gray-400 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-100 focus:border-gray-300"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
